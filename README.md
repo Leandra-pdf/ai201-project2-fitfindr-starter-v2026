@@ -59,24 +59,24 @@
 
 ### `search_listings`
 
-- **What it does:**
-- **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Searches the listings data for items matching the requested description, with optional filtering by size and maximum price.
+- **Inputs:** `description` (str), `size` (str or None), `max_price` (float or None). `size` and `max_price` are optional. Size matching is case-insensitive and should match the requested size against the listing's size, including combined sizes such as S/M.
+- **Returns:** A list of matching listing dictionaries. The best match first. Each listing contains `id`, `title`, `description`, `category`, `style_tags` (list), `size`, `condition`, `price` (float), `colors` (list), `brand` (str or None), and `platform`.
+- **When it has nothing:** Returns an empty list when no listings match.
 
 ### `suggest_outfit`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Suggests outfit combinations using the user's wardrobe and a thrifted item.
+- **Inputs:** `new_item` (dict), a listing dictionary for the item being considered. `wardrobe` (dict), containing an `items` key with a list of wardrobe items.
+- **Returns:** Outfit suggestions in a non-empty string.
+- **When it has nothing:** If the wardrobe's `items` list is empty, returns general styling advice rather than an error or an empty string.
 
 ### `create_fit_card`
 
-- **What it does:**
-- **Inputs:**
-- **Returns:**
-- **When it has nothing:**
+- **What it does:** Creates a short social media style caption for the selected item and suggested outfit.
+- **Inputs:** `outfit` (str), the outfit suggestion returned by `suggest_outfit()`. `new_item` (dict), the listing dictionary for the selected item.
+- **Returns:** A caption that is 2-4 sentences long that read like a real post. It mentions the item, price, and platform once and describes the outfit's vibe.
+- **When it has nothing:** If `outfit` is empty or contains only whitespace, returns a descriptive message rather than raising an error.
 
 ---
 

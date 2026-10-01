@@ -23,12 +23,46 @@ the description has to say what is *in* the list.
 import config  # noqa: F401 — you'll use this in search_listings
 from generate import generate
 from utils.data_loader import load_listings
+import re
 
+# to get a more effective agent
+_STOPWORDS = {
+    # Articles
+    "a", "an", "the",
+    
+    # Common conjunctions
+    "and", "or", "but", "if", "so",
+    
+    # Primary prepositions
+    "in", "on", "at", "to", "for", "of", "with", "by", "from", 
+    "up", "about", "into", "after"
+}
+
+# remove stop words from the search str that was sent to the agent, convert keywords str to lowercase
+def _keywords(text: str) -> set[str]:
+    """Lowercase words worth matching on, stopwords removed."""
+    words = re.findall(r"[a-z0-9']+", (text or "").lower())
+    return {w for w in words if w not in _STOPWORDS and len(w) > 1}
+
+# figure out the size token from the search, looks for sizes (XL, W2 L30, etc)
+def _size_tokens(size: str) -> set[str]:
+    cleaned = re.sub(r"\([^)]*\)", " ", size or "") # drop parentheticals
+    parts = [p.strip().upper for p in cleaned.split("/")]
+    return {p for p in parts if p}
+
+# see if listed size satisfies the requested size, search against the match
+def _size_matches(wanted: str, listing_size: str) -> bool:
+    if not wanted:
+        return True
+    listing_tokens = _size_tokens(listing_size)
+    if any(token.startswith("ONE SIZE") for token in listing_tokens):
+        return True
+    return bool(_size_tokens(wanted) & listing_tokens)
 
 # ── Tool 1: search_listings ───────────────────────────────────────────────────
 
 def search_listings(
-    description: str,
+    description: str, # part of user prompt, make sure its formatted and parsed
     size: str | None = None,
     max_price: float | None = None,
 ) -> list[dict]:
