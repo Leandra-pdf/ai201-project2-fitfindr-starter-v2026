@@ -39,7 +39,7 @@
 
 ## What This Does
 
-Users search for secondhand clothing items by providing descriptive keywords along with optional size and budget preferences. The system filters and scores the catalog to return a targeted list of matching thrift listings. Users can then generate personalized outfit combinations that pair the new find with items from their existing wardrobe, or receive general styling advice if their wardrobe is empty. Finally, the app produces a social media-ready style caption highlighting the outfit, price, and platform for sharing.
+FitFindr is an AI-powered secondhand outfit discovery tool where users provide descriptive keywords along with optional size and budget preferences. In return, the agent delivers matching thrift listings, personalized outfit combinations paired with items from their existing wardrobe (or general styling advice if the wardrobe is empty), and a social media-ready style caption. If no listings match, it explains what the user can change to improve the search.
 
 
 ---
@@ -92,13 +92,13 @@ Users search for secondhand clothing items by providing descriptive keywords alo
      The grader checks your code against what you claim here, so the file and
      function have to be real. -->
 
-**Branch rule:**
+**Branch rule:** If the search returns no listings, FitFindr saves a message explaining what the user could change and stops without generating an outfit or fit card. If listings are found, it selects the first result, uses it to generate outfit ideas with the user's wardrobe, and then creates a caption.
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** The `parse_query()` function uses regular expressions to pull out the clothing description, optional size, and maximum price from the user's search.
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** The parsed query is saved in `session["parsed"]`, and the search results go into `session["search_results"]`. If a match is found, the selected listing is saved in `session["selected_item"]` and passed along to generate `session["outfit_suggestion"]` and `session["fit_card"]`. If nothing matches, the agent saves a helpful message in `session["error"]` and leaves `session["fit_card"]` as `None`.
 
 ---
 
@@ -135,29 +135,29 @@ $ python3 app.py ask 'Find me a Y2K graphic tee under $30 in size S'
 
   Outfit:   Here are two fun, easy-to-wear outfit ideas featuring your new Y2K Butterfly Baby Tee and pieces from your existing wardrobe:
 
-Outfit 1: Effortless Y2K Streetwear
-- Top: Y2K Baby Tee — Butterfly Print (New Item)
-- Bottoms: Baggy straight-leg jeans, dark wash (From your wardrobe)
-- Footwear: Chunky white sneakers (From your wardrobe)
-- Outerwear: Black cropped zip hoodie (From your wardrobe)
-- Accessories: Black crossbody bag (From your wardrobe)
+### Outfit 1: Effortless Y2K Streetwear
+* **Top:** Y2K Baby Tee — Butterfly Print *(New Item)*
+* **Bottoms:** Baggy straight-leg jeans, dark wash *(From your wardrobe)*
+* **Footwear:** Chunky white sneakers *(From your wardrobe)*
+* **Outerwear:** Black cropped zip hoodie *(From your wardrobe)*
+* **Accessories:** Black crossbody bag *(From your wardrobe)*
 
-Why it works:
+**Why it works:** 
 This look leans all the way into the 2000s aesthetic. The fitted, cropped silhouette of the baby tee balances out the volume of the baggy dark-wash jeans. Layering the black cropped zip hoodie on top keeps you warm while showing off the cute waistline of the jeans, and the chunky white sneakers tie the whole retro vibe together.
 
-Outfit 2: Casual Vintage Prep
-- Top: Y2K Baby Tee — Butterfly Print (New Item)
-- Bottoms: Wide-leg khaki trousers (From your wardrobe)
-- Footwear: Chunky white sneakers (From your wardrobe)
-- Outerwear: Vintage black denim jacket (From your wardrobe)
-- Accessory: A brown leather belt (From your wardrobe)
+---
 
-Why it works:
+### Outfit 2: Casual Vintage Prep
+* **Top:** Y2K Baby Tee — Butterfly Print *(New Item)*
+* **Bottoms:** Wide-leg khaki trousers *(From your wardrobe)*
+* **Footwear:** Chunky white sneakers *(From your wardrobe)*
+* **Outerwear:** Vintage black denim jacket *(From your wardrobe)*
+* **Accessory (Suggested addition):** A brown leather belt *(From your wardrobe)*
+
+**Why it works:**
 This outfit plays with proportions by pairing the fitted, pink-and-purple graphic tee with structured, wide-leg khaki trousers. Tucking the tee in and adding your brown leather belt adds a touch of polish. Throwing on the vintage black denim jacket and white sneakers keeps it grounded, comfortable, and effortlessly cool for everyday wear.
 
   Fit card: I am so obsessed with this pink and purple Y2K Baby Tee — Butterfly Print that just dropped on my depop for $18.0! It has the dreamiest fitted crop length and gives off major effortless streetwear vibes when you style it with baggy jeans and a chunky sneaker.
-
-2 model calls this session, 866 prompt + 426 output tokens
 
 ```
 
@@ -206,24 +206,18 @@ I'm still not over finding these Vintage Levi's 501 Jeans in a Medium Wash on de
 
 ## How I Used AI
 
-<!-- Two specific moments. What you asked, what came back, what you changed.
+**Moment 1 — Fixing the price parser**
 
-     "I used Claude to help me code" is not enough.
+* **What I asked for:** I asked ChatGPT for help figuring out why my query parser wasn't correctly handling searches like `designer ballgown size XXS under $5`.
+* **What came back:** It suggested changing the regular expression so it could recognize price limits like `under $5` and extract the number correctly.
+* **What I changed:** My first attempt at updating the expression caused a `TypeError` because I passed the arguments to `re.compile()` incorrectly. I fixed the expression and price extraction, then ran the agent again to check that the $5 limit was recognized.
 
-     "I gave Claude my search_listings spec. It returned None on no match
-     instead of an empty list, so I changed it" is the level we want. -->
+**Moment 2 — Fixing the size parsing error**
 
-**Moment 1**
+* **What I asked for:** I asked ChatGPT for help figuring out why my agent was crashing with an `AttributeError` involving `startswith` when processing a clothing search.
+* **What came back:** We traced the issue to `tools.py`, where I had written `.upper` instead of `.upper()`. This meant Python was storing a method reference instead of the uppercase string I needed.
+* **What I changed:** I added the missing parentheses to call `.upper()` and return the actual string. I then checked the code to make sure size tokens such as `S/M` were split and processed correctly.
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
-
-**Moment 2**
-
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
