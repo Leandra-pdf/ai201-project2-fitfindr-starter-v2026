@@ -12,12 +12,12 @@ Build and test your three tools in `tools.py` first. Then come here.
 
     python agent.py          runs both example paths below
 """
-import re
 
 import config
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card
 from generate import ModelUnavailable
+import re
 
 
 # ── session state ─────────────────────────────────────────────────────────────
@@ -33,6 +33,8 @@ def new_session(query: str, wardrobe: dict) -> dict:
     and you would not be able to test it — you can't print a variable you have
     already overwritten. Going through the session is what makes the state
     visible, and unit 4 has you write a criterion about exactly that.
+
+    Add fields if you need them.
     """
     return {
         "query": query,              # what the user typed
@@ -46,18 +48,22 @@ def new_session(query: str, wardrobe: dict) -> dict:
     }
 
 
-# ── parsing the query ─────────────────────────────────────────────────────────
+# ── query parsing ─────────────────────────────────────────────────────────────
 
-# Sizes a user is likely to type. Matched as whole words so that the "M" in
-# "Medium Wash" or the "L" in "L/XL" can't be mistaken for a request.
 _SIZE_WORDS = r"XXS|XS|S|M|L|XL|XXL"
 _PRICE_RE = re.compile(
     r"\b(?:under|below|less than|max|up to)\s*\$?\s*(\d+(?:\.\d+)?)"
     r"|\$\s*(\d+(?:\.\d+)?)",
     re.I,
 )
-_SIZE_RE = re.compile(rf"\bsize\s+({_SIZE_WORDS}|US\s*\d+(?:\.\d+)?|W\d+)\b", re.I)
-_BARE_SIZE_RE = re.compile(rf",\s*({_SIZE_WORDS})\s*$", re.I)
+_SIZE_RE = re.compile(
+    rf"\bsize\s+({_SIZE_WORDS}|US\s*\d+(?:\.\d+)?|W\d+)\b",
+    re.I,
+)
+_BARE_SIZE_RE = re.compile(
+    rf",\s*({_SIZE_WORDS})\s*$",
+    re.I,
+)
 
 
 def parse_query(query: str) -> dict:
@@ -110,7 +116,7 @@ def parse_query(query: str) -> dict:
             + text[size_match.end():]
         )
 
-    # Clean up extra spaces and commas left after extraction.
+    # Clean up extra spaces and commas.
     description = re.sub(r"[,\s]+", " ", text).strip(" ,")
 
     return {
@@ -119,35 +125,44 @@ def parse_query(query: str) -> dict:
         "max_price": max_price,
     }
 
+
+# ── empty-results message ─────────────────────────────────────────────────────
+
+def _nothing_found_message(parsed: dict) -> str:
+    """
+    What to say when the search comes back empty.
+
+    "No results" is not this message. This one names the three things the user
+    actually controls, and says which of them were in play — a ceiling they
+    never set is not a ceiling worth suggesting they raise.
+    """
+    tried = [f"description {parsed['description']!r}"]
+
+    if parsed["size"]:
+        tried.append(f"size {parsed['size']}")
+
+    if parsed["max_price"] is not None:
+        tried.append(f"under ${parsed['max_price']:g}")
+
+    suggestions = [
+        "try broader words — 'jacket' finds more than 'cropped corduroy jacket'"
+    ]
+
+    if parsed["size"]:
+        suggestions.append("drop the size, or try a neighbouring one")
+
+    if parsed["max_price"] is not None:
+        suggestions.append(
+            f"raise the price ceiling above ${parsed['max_price']:g}"
+        )
+
+    return (
+        "Nothing in the listings matched " + ", ".join(tried) + ".\n"
+        "Things to change: " + "; ".join(suggestions) + "."
+    )
+
+
 # ── planning loop ─────────────────────────────────────────────────────────────
-
-def _search(parsed: dict) -> list[dict]:
-    """
-    Call search_listings — over MCP when the server has it registered.
-
-    ⚠️ UNIT 4, MILESTONE 1. In unit 3 this function does not exist and
-    `run_agent` calls `search_listings(...)` directly. The fallback is not
-    belt-and-braces for its own sake: `python agent.py` has to keep working
-    while the MCP side is half-built, and a student whose 40 minutes ran out
-    still needs the rest of the week to run.
-    """
-    try:
-        from mcp_client import call_tool
-
-        results = call_tool(
-            "search_listings",
-            {
-                "description": parsed["description"],
-                "size": parsed["size"],
-                "max_price": parsed["max_price"],
-            },
-        )
-        return results or []
-    except Exception:  # noqa: BLE001 — MCP unavailable is not a user-facing error
-        return search_listings(
-            parsed["description"], parsed["size"], parsed["max_price"]
-        )
-
 
 def run_agent(query: str, wardrobe: dict) -> dict:
     """
@@ -163,111 +178,98 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         The session dict. **Check session["error"] first** — if it isn't None,
         the run ended early and the later fields will still be None.
 
-    The branch rule, stated once so the code below can be read against it:
+    ─────────────────────────────────────────────────────────────────────────
+    TODO — build this, following the branch rule you wrote in Milestone 2.
 
-        If search_listings returns an empty list, put a message in
-        session["error"] naming what the user could change, and return the
-        session without calling suggest_outfit. Otherwise take the first
-        result, put it in session["selected_item"], and continue.
+      1. Start a session with new_session().
+
+      2. Count the times round the loop, and call trace.check_iterations(count)
+         on each one before you go again. It raises when the count passes
+         MAX_ITERATIONS in config.py — see trace.py.
+
+      3. Parse the query into a description, a size, and a max_price. Regex,
+         string splitting, or asking the model are all fine — say which you
+         chose in your README. Put the result in session["parsed"].
+
+      4. Call search_listings() with what you parsed.
+         Put the results in session["search_results"].
+
+         ⚠️ THIS IS THE BRANCH. If nothing came back:
+              - put a message in session["error"] saying what the user could
+                change — "No results" is not that message
+              - return the session
+              - do NOT call suggest_outfit with nothing
+
+      5. Choose an item — the first result is fine. Put it in
+         session["selected_item"].
+
+      6. Call suggest_outfit() with the selected item and the wardrobe.
+         Put the result in session["outfit_suggestion"].
+
+      7. Call create_fit_card() with the outfit and the item.
+         Put the result in session["fit_card"].
+
+      8. Return the session.
+
+    ─────────────────────────────────────────────────────────────────────────
+    IN UNIT 4 you come back and add two things:
+
+      • Trace calls. One per step. `trace.step("search_listings", inputs=...,
+        returned=...)` — see trace.py. Your README needs the output.
+
+      • A handler for ModelUnavailable, so a bad key produces a message rather
+        than a stack trace. The import is already at the top of this file.
     """
     session = new_session(query, wardrobe)
     steps = 0
 
-    # ⚠️ UNIT 4, MILESTONE 2 — everything in the try/except is unit 3 code; the
-    # handler around it is what unit 4 adds, so that a bad key produces a
-    # sentence rather than a stack trace.
-    try:
-        steps += 1
-        trace.check_iterations(steps)
-        parsed = parse_query(query)
-        session["parsed"] = parsed
-        trace.step("parse_query", inputs=query, returned=parsed)
+    # Step 1: Parse the query.
+    steps += 1
+    trace.check_iterations(steps)
 
-        steps += 1
-        trace.check_iterations(steps)
-        results = _search(parsed)
-        session["search_results"] = results
-        trace.step(
-            "search_listings (via MCP)",
-            inputs=parsed,
-            returned=results,
-            note=f"{len(results)} match(es)",
-        )
+    session["parsed"] = parse_query(session["query"])
 
-        # ── THE BRANCH ────────────────────────────────────────────────────────
-        if not results:
-            session["error"] = _nothing_found_message(parsed)
-            trace.step(
-                "branch",
-                note="search returned []: stopping before suggest_outfit",
-            )
-            return session
+    # Step 2: Search for listings.
+    steps += 1
+    trace.check_iterations(steps)
 
-        steps += 1
-        trace.check_iterations(steps)
-        session["selected_item"] = results[0]
-        trace.step("select_item", returned=session["selected_item"])
+    parsed = session["parsed"]
+    session["search_results"] = search_listings(
+        parsed["description"],
+        parsed["size"],
+        parsed["max_price"],
+    )
 
-        steps += 1
-        trace.check_iterations(steps)
-        session["outfit_suggestion"] = suggest_outfit(
-            session["selected_item"], session["wardrobe"]
-        )
-        trace.step(
-            "suggest_outfit",
-            inputs=session["selected_item"],
-            returned=session["outfit_suggestion"],
-            note=f"{len(session['wardrobe'].get('items') or [])} wardrobe item(s)",
-        )
+    # Branch: stop if no listings match.
+    if not session["search_results"]:
+        session["error"] = _nothing_found_message(session["parsed"])
+        return session
 
-        steps += 1
-        trace.check_iterations(steps)
-        session["fit_card"] = create_fit_card(
-            session["outfit_suggestion"], session["selected_item"]
-        )
-        trace.step(
-            "create_fit_card",
-            inputs=session["selected_item"],
-            returned=session["fit_card"],
-        )
+    # Step 3: Select the first matching listing.
+    steps += 1
+    trace.check_iterations(steps)
 
-    except ModelUnavailable as exc:
-        session["error"] = (
-            f"The model couldn't be reached, so the outfit and caption steps "
-            f"didn't run. The search worked — "
-            f"{len(session['search_results'])} listing(s) were found. "
-            f"Check GEMINI_API_KEY in your .env, then run the same query "
-            f"again.\nWhat the service said: {exc}"
-        )
-        trace.step("model unavailable", note="stopping, search results kept")
+    session["selected_item"] = session["search_results"][0]
+
+    # Step 4: Generate an outfit suggestion.
+    steps += 1
+    trace.check_iterations(steps)
+
+    session["outfit_suggestion"] = suggest_outfit(
+        session["selected_item"],
+        session["wardrobe"],
+    )
+
+    # Step 5: Create the fit card.
+    steps += 1
+    trace.check_iterations(steps)
+
+    session["fit_card"] = create_fit_card(
+        session["outfit_suggestion"],
+        session["selected_item"],
+    )
 
     return session
-
-
-def _nothing_found_message(parsed: dict) -> str:
-    """
-    What to say when the search comes back empty.
-
-    "No results" is not this message. This one names the three things the user
-    actually controls, and says which of them were in play — a ceiling they
-    never set is not a ceiling worth suggesting they raise.
-    """
-    tried = [f"description {parsed['description']!r}"]
-    if parsed["size"]:
-        tried.append(f"size {parsed['size']}")
-    if parsed["max_price"] is not None:
-        tried.append(f"under ${parsed['max_price']:g}")
-
-    suggestions = ["try broader words — 'jacket' finds more than 'cropped corduroy jacket'"]
-    if parsed["size"]:
-        suggestions.append("drop the size, or try a neighbouring one")
-    if parsed["max_price"] is not None:
-        suggestions.append(f"raise the price ceiling above ${parsed['max_price']:g}")
-
-    return (
-        "Nothing in the listings matched " + ", ".join(tried) + ".\n"
-        "Things to change: " + "; ".join(suggestions) + "."
-    )
 
 
 # ── running it directly ───────────────────────────────────────────────────────
