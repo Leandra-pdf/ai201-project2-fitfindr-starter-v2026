@@ -25,17 +25,14 @@ from generate import generate
 from utils.data_loader import load_listings
 import re
 
+# Words that usually don't help identify a listing.
 # to get a more effective agent
 _STOPWORDS = {
-    # Articles
     "a", "an", "the",
-    
-    # Common conjunctions
     "and", "or", "but", "if", "so",
-    
-    # Primary prepositions
-    "in", "on", "at", "to", "for", "of", "with", "by", "from", 
-    "up", "about", "into", "after"
+    "in", "on", "at", "to", "for", "of",
+    "with", "by", "from", "up", "about",
+    "into", "after",
 }
 
 # remove stop words from the search str that was sent to the agent, convert keywords str to lowercase
@@ -47,7 +44,7 @@ def _keywords(text: str) -> set[str]:
 # figure out the size token from the search, looks for sizes (XL, W2 L30, etc)
 def _size_tokens(size: str) -> set[str]:
     cleaned = re.sub(r"\([^)]*\)", " ", size or "") # drop parentheticals
-    parts = [p.strip().upper for p in cleaned.split("/")]
+    parts = [p.strip().upper() for p in cleaned.split("/")]
     return {p for p in parts if p}
 
 # see if listed size satisfies the requested size, search against the match
@@ -112,8 +109,50 @@ def search_listings(
     Test it from a terminal before you move on:
         python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
     """
-    # TODO: replace this with your implementation
-    return []
+    listings = load_listings()
+    query_keywords = _keywords(description)
+
+    if not query_keywords:
+        return []
+
+    scored_listings = []
+
+    for listing in listings:
+        # Apply the maximum price filter.
+        if max_price is not None:
+            try:
+                price = float(listing["price"])
+            except (KeyError, TypeError, ValueError):
+                continue
+
+            if price > max_price:
+                continue
+
+        # Apply the requested size filter.
+        if size and not _size_matches(
+            size, str(listing.get("size", ""))
+        ):
+            continue
+
+        # Score based on keyword overlap with the description.
+        listing_keywords = _keywords(
+            str(listing.get("description", ""))
+        )
+        score = len(query_keywords & listing_keywords)
+
+        if score > 0:
+            scored_listings.append((score, listing))
+
+    # Sort from highest score to lowest score.
+    scored_listings.sort(key=lambda item: item[0], reverse=True)
+
+    result_limit = max(0, int(config.SEARCH_RESULT_LIMIT))
+    results = []
+
+    for score, listing in scored_listings[:result_limit]:
+        results.append(listing)
+
+    return results
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
@@ -146,8 +185,68 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
     """
-    # TODO: replace this with your implementation
-    return ""
+    wardrobe_items = (wardrobe or {}).get("items") or []
+    
+    item_details = (
+        f"Title: {new_item.get('title', 'Unknown item')}\n"
+        f"Description: {new_item.get('description', '')}\n"
+        f"Category: {new_item.get('category', '')}\n"
+        f"Size: {new_item.get('size', '')}\n"
+        f"Color(s): {new_item.get('colors', [])}\n"
+        f"Style tags: {new_item.get('style_tags', [])}\n"
+        f"Price: ${new_item.get('price', 'Unknown')}\n"
+    )
+
+    if not wardrobe_items:
+        prompt = f"""
+    You are a helpful personal styling assistant.
+    
+    Suggest one or two practical outfits featuring this secondhand item.
+    The user has not provided a wardrobe, so do not assume they own
+    specific clothing or accessories. Recommend general types of pieces
+    they could pair with the item.
+    
+    Item details:
+    {item_details}
+    
+    Explain why the combinations work and keep the advice approachable.
+    """
+    else:
+        wardrobe_lines = []
+
+        for item in wardrobe_items:
+            if isinstance(item, str):
+                item_description = item
+            else:
+                item_description = item.get(
+                    "name",
+                    item.get("title", str(item))
+                )
+
+            wardrobe_lines.append(f"- {item_description}")
+
+        wardrobe_details = "\n".join(wardrobe_lines)
+
+        prompt = f"""
+    You are a helpful personal styling assistant.
+    
+    Suggest one or two outfits featuring the new item. Use the wardrobe
+    provided below and name the pieces the user already owns. You may
+    suggest a small number of complementary items if necessary, but make
+    clear which pieces come from the existing wardrobe.
+    
+    New item:
+    {item_details}
+    
+    User's wardrobe:
+    {wardrobe_details}
+    
+    Explain briefly why each outfit works. Keep the recommendations
+    practical, specific, and easy to follow.
+    """
+    
+    response = generate(prompt)
+    return str(response).strip()
 
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
@@ -186,5 +285,41 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
     Test it from a terminal before you move on:
         python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
     """
-    # TODO: replace this with your implementation
-    return ""
+    if not outfit or not outfit.strip():
+        return (
+            "No outfit suggestion is available yet. Try pairing this "
+            "item with complementary pieces to create a look."
+        )
+
+    title = new_item.get("title", "thrifted find")
+    description = new_item.get("description", "")
+    price = new_item.get("price", "Unknown")
+    platform = new_item.get("platform", "the resale platform")
+    colors = new_item.get("colors", [])
+    style_tags = new_item.get("style_tags", [])
+
+    prompt = f"""
+    You are a creative fashion copywriter writing a natural social media
+    caption for a secondhand fashion find.
+
+    Write a caption of exactly 2 to 4 sentences that:
+    - Mentions the item's title: {title}
+    - Mentions its price: ${price}
+    - Mentions the platform: {platform}
+    - Describes the outfit's vibe in a specific, appealing way.
+    - Sounds like a real person sharing a find, not a product listing.
+    - Includes the outfit details below.
+    - Uses natural wording and avoids unnecessary repetition.
+
+    Item description: {description}
+    Colors: {colors}
+    Style tags: {style_tags}
+
+    Outfit suggestion:
+    {outfit}
+
+    Return only the caption, without a heading or quotation marks.
+    """
+
+    response = generate(prompt)
+    return str(response).strip()
