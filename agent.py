@@ -51,8 +51,11 @@ def new_session(query: str, wardrobe: dict) -> dict:
 # Sizes a user is likely to type. Matched as whole words so that the "M" in
 # "Medium Wash" or the "L" in "L/XL" can't be mistaken for a request.
 _SIZE_WORDS = r"XXS|XS|S|M|L|XL|XXL"
-
-_PRICE_RE = re.compile(r"(?:under|below|less than|max|up to)?\s*\$\s*(\d+(?:\.\d+)?)", re.I)
+_PRICE_RE = re.compile(
+    r"\b(?:under|below|less than|max|up to)\s*\$?\s*(\d+(?:\.\d+)?)"
+    r"|\$\s*(\d+(?:\.\d+)?)",
+    re.I,
+)
 _SIZE_RE = re.compile(rf"\bsize\s+({_SIZE_WORDS}|US\s*\d+(?:\.\d+)?|W\d+)\b", re.I)
 _BARE_SIZE_RE = re.compile(rf",\s*({_SIZE_WORDS})\s*$", re.I)
 
@@ -74,22 +77,47 @@ def parse_query(query: str) -> dict:
     `max_price` (float or None).
     """
     text = query or ""
-
     max_price = None
+
+    # Extract the price before processing the size.
     price_match = _PRICE_RE.search(text)
+
     if price_match:
-        max_price = float(price_match.group(1))
-        text = text[: price_match.start()] + " " + text[price_match.end() :]
+        price_value = price_match.group(1) or price_match.group(2)
+        max_price = float(price_value)
 
+        text = (
+            text[:price_match.start()]
+            + " "
+            + text[price_match.end():]
+        )
+
+    # Extract the requested size.
     size = None
-    size_match = _SIZE_RE.search(text) or _BARE_SIZE_RE.search(text)
+    size_match = _SIZE_RE.search(text)
+
+    if size_match is None:
+        size_match = _BARE_SIZE_RE.search(text)
+
     if size_match:
-        size = re.sub(r"\s+", " ", size_match.group(1)).strip().upper()
-        text = text[: size_match.start()] + " " + text[size_match.end() :]
+        size = re.sub(
+            r"\s+", " ", size_match.group(1)
+        ).strip().upper()
 
+        text = (
+            text[:size_match.start()]
+            + " "
+            + text[size_match.end():]
+        )
+
+    # Clean up extra spaces and commas left after extraction.
     description = re.sub(r"[,\s]+", " ", text).strip(" ,")
-    return {"description": description, "size": size, "max_price": max_price}
 
+    return {
+        "description": description,
+        "size": size,
+        "max_price": max_price,
+    }
 
 # ── planning loop ─────────────────────────────────────────────────────────────
 
