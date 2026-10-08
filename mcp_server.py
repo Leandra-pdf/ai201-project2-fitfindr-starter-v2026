@@ -69,20 +69,31 @@ mcp = FastMCP("fitfindr", log_level="WARNING")
 
 # ── TODO: uncomment and fill this in ──────────────────────────────────────────
 #
-# @mcp.tool()
-# def search_listings(
-#     description: str,
-#     size: str | None = None,
-#     max_price: float | None = None,
-# ) -> list[dict]:
-#     """
-#     <-- YOUR DESCRIPTION GOES HERE.
-#
-#         One or two sentences. What does this tool do, what does it need, and
-#         what does it give back when it finds nothing? Written for a reader
-#         who cannot see the code.
-#     """
-#     return _search_listings_impl(description, size, max_price)
+@mcp.tool()
+def search_listings(
+    description: str,
+    size: str | None = None,
+    max_price: float | None = None,
+) -> list[dict]:
+    """
+    Search clothing listings by description, optional size, and optional maximum price in dollars. 
+    Returns matching listings from a fixed catalog of 40 second-hand clothing listings.
+
+    'description' is free text and is matched as keywords against each listing's title, description, category, brand, style tags, and colors.
+    A listing must share at least one keyword to be returned.
+
+    'size' is optional and is matched as a whole size token. For example, "M" matches listings sized "M", "S/M", or "M/L", but not "XL".
+    Listings sized "One Size" match any requested size.
+
+    'max_price' is optional, in dollars, and is inclusive.
+
+    Returns a list of listing dictionaries, ordered by best keyword match and then by lower price among equal matches.
+    Each dictionary contains: id, title, description, category, style_tags, size, condition, price, colors, brand (often null), and platform.
+
+    Returns an empty list when nothing matches. 
+    An empty list is the normal "no results" response; the tool does not return null or raise an error for an unsuccessful search.
+    """
+    return _search_listings_impl(description, size, max_price)
 #
 # ──────────────────────────────────────────────────────────────────────────────
 #
