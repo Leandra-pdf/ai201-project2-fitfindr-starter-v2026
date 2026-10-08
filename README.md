@@ -225,19 +225,39 @@ I just scored these Vintage Levi's 501 Jeans in a Medium Wash on depop for $38.0
      `python run_eval.py --label before` runs everything and writes the table
      into results/. Paste it here and fill in the verdicts. -->
 
-| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
-|---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| Criterion                                           | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict       |
+| --------------------------------------------------- | ------ | ----- | ----- | ----- | ----- | ----- | ------------- |
+| 1. A matching query completes all three tools       | 4/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| 2. An impossible query stops before the second tool | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| 3. State preserves the selected listing             | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| 4. Fit card varies and meets content requirements   | 2/3    | PASS  | PASS  | PASS  | —     | —     | **MET — 3/3** |
+| 5. Search respects the maximum price                | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
 
-**Real output from one try**, pasted as text, naming the file and function
-that produced it:
+**Note:** Criterion 4 is written as a 3-run criterion rather than a 5-run criterion, because the original requirement specifically says "at least 2 of 3 runs." The three fresh runs were performed with the cache disabled.
+
+**Real output from one try**, pasted as text, naming the file and function that produced it:
 
 ```
 
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+
+[2] search_listings (via MCP)
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 8 items: Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print, Vintage Graphic Hoodie — Faded Black … +5 more
+      →    8 match(es)
+
+[3] select_item
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+
+[4] suggest_outfit
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Here are two effortless, grunge-leaning outfits featuring your new graphic tee and pieces straight from your w…
+
+[5] create_fit_card
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Just scored this perfectly faded Graphic Tee — 2003 Tour Bootleg Style on depop for $24.0, and it has that ult…
 ```
 
 ---
@@ -260,15 +280,17 @@ that produced it:
      Look for a pattern. Three misses on the same tool is one problem, not
      three. -->
 
-| # | Criterion | Target | Verdict | How I decided |
-|---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| # | Criterion                                        | Target | Verdict       | How I decided                                                                                                                                                         |
+| - | ------------------------------------------------ | ------ | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 | A matching query completes all three tools       | 4/5    | **MET — 5/5** | All five matching-query tries completed `search_listings`, `suggest_outfit`, and `create_fit_card` and returned a fit card.                                           |
+| 2 | An impossible query stops before the second tool | 5/5    | **MET — 5/5** | All five impossible-query tries returned an empty search result and stopped before `suggest_outfit`, while returning a message explaining what the user could change. |
+| 3 | State preserves the selected listing             | 5/5    | **MET — 5/5** | In all five checks, `search_results[0]["id"]` and `selected_item["id"]` were both `lst_006`.                                                                          |
+| 4 | Fit card varies and meets content requirements   | 2/3    | **MET — 3/3** | With the cache disabled, all three runs produced different captions. Each caption was 2–4 sentences and mentioned the item, price, and platform.                      |
+| 5 | Search respects the maximum price                | 5/5    | **MET — 5/5** | All five searches returned only listings priced at or below the requested $30 maximum.                                                                                |
 
 **Diagnoses**
+
+There were no criterion misses in the Before evaluation, so there are no failure diagnoses to report.
 
 
 
@@ -289,13 +311,36 @@ that produced it:
 **Happy path**
 
 ```
-
+[1] parse_query
+      in:  vintage graphic tee under $30
+      out: {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 8 items: Graphic Tee — 2003 Tour Bootleg Style, Y2K Baby Tee — Butterfly Print, Vintage Graphic Hoodie — Faded Black … +5 more
+      →    8 match(es)
+[3] select_item
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+[4] suggest_outfit
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Here are two effortless, grunge-leaning outfits featuring your new graphic tee and pieces straight from your w…
+[5] create_fit_card
+      in:  Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+      out: Just scored this perfectly faded Graphic Tee — 2003 Tour Bootleg Style on depop for $24.0, and it has that ult…
 ```
 
 **Empty search**
 
 ```
+[1] parse_query
+      in:  designer ballgown size XXS under $5
+      out: {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: [] (empty)
+      →    0 match(es)
 
+  Nothing in the listings matched description 'designer ballgown', size XXS, under $5.
+Things to change: try broader words — 'jacket' finds more than 'cropped corduroy jacket'; drop the size, or try a neighbouring one; raise the price ceiling above $5.
 ```
 
 **On the MCP move:** <!-- what changed in your code, and whether anything

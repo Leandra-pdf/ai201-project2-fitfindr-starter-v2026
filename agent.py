@@ -229,6 +229,11 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     trace.check_iterations(steps)
 
     session["parsed"] = parse_query(session["query"])
+    trace.step(
+        "parse_query",
+        inputs=session["query"],
+        returned=str(session["parsed"]),
+    )
 
     # Step 2: Search for listings.
     steps += 1
@@ -241,6 +246,13 @@ def run_agent(query: str, wardrobe: dict) -> dict:
         "size": parsed["size"],
         "max_price": parsed["max_price"],
     })
+    trace.step(
+        "search_listings (via MCP)",
+        inputs=str(parsed),
+        returned=session["search_results"],
+        note=f"{len(session['search_results'])} match(es)",
+    )
+
     # Branch: stop if no listings match.
     if not session["search_results"]:
         session["error"] = _nothing_found_message(session["parsed"])
@@ -252,13 +264,31 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
     session["selected_item"] = session["search_results"][0]
 
+    trace.step(
+        "select_item",
+        returned=session["selected_item"],
+    )
+
     # Step 4: Generate an outfit suggestion.
     steps += 1
     trace.check_iterations(steps)
 
-    session["outfit_suggestion"] = suggest_outfit(
-        session["selected_item"],
-        session["wardrobe"],
+    try:
+        session["outfit_suggestion"] = suggest_outfit(
+            session["selected_item"],
+            session["wardrobe"],
+        )
+    except ModelUnavailable:
+        session["error"] = (
+            "The outfit model could not be reached. "
+            "Please check the model/API key and try your query again."
+        )
+        return session
+
+    trace.step(
+        "suggest_outfit",
+        inputs=session["selected_item"],
+        returned=session["outfit_suggestion"],
     )
 
     # Step 5: Create the fit card.
@@ -268,6 +298,12 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     session["fit_card"] = create_fit_card(
         session["outfit_suggestion"],
         session["selected_item"],
+    )
+
+    trace.step(
+        "create_fit_card",
+        inputs=session["selected_item"],
+        returned=session["fit_card"],
     )
 
     return session
