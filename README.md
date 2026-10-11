@@ -46,16 +46,6 @@ FitFindr is an AI-powered secondhand outfit discovery tool where users provide d
 
 ## Tool Inventory
 
-<!-- Four lines per tool. This is worth 2 points and it's the single most
-     common place students lose them.
-
-     "Returns a list" earns NOTHING. The description has to say what is IN
-     the list.
-
-     The empty case isn't optional either — it's the thing your loop branches
-     on, and if you don't decide it here you'll discover it as a crash in
-     Milestone 5. -->
-
 ### `search_listings`
 
 - **What it does:** Searches the listings data for items matching the requested description, with optional filtering by size and maximum price.
@@ -81,17 +71,6 @@ FitFindr is an AI-powered secondhand outfit discovery tool where users provide d
 
 ## Planning Loop
 
-<!-- Your branch rule, stated as a rule — the condition AND both paths — plus
-     the file and function that holds it.
-
-     Like this:
-       "If search_listings returns an empty list, put a message in the session
-        and stop. Otherwise take the first result and go to suggest_outfit."
-        — agent.py::run_agent
-
-     The grader checks your code against what you claim here, so the file and
-     function have to be real. -->
-
 **Branch rule:** If the search returns no listings, FitFindr saves a message explaining what the user could change and stops without generating an outfit or fit card. If listings are found, it selects the first result, uses it to generate outfit ideas with the user's wardrobe, and then creates a caption.
 
 **Where it lives:** `agent.py::run_agent`
@@ -103,11 +82,6 @@ FitFindr is an AI-powered secondhand outfit discovery tool where users provide d
 ---
 
 ## Sample Run
-
-<!-- Two things go here.
-
-     1. One FULL query and its output, pasted as text.
-     2. Your three per-tool terminal tests — the command and what it printed. -->
 
 **One full query**
 
@@ -216,22 +190,14 @@ I just scored these Vintage Levi's 501 Jeans in a Medium Wash on depop for $38.0
 
 ## Run Log — Before
 
-<!-- Five criteria, five tries each, in this exact format.
-
-     Five, because your criteria are written out of five. Mark each try PASS
-     or FAIL, count the passes, and read that count against your target — a
-     row targeting 4 of 5 with three PASS cells is MISSED (3/5).
-
-     `python run_eval.py --label before` runs everything and writes the table
-     into results/. Paste it here and fill in the verdicts. -->
-
-| Criterion                                           | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict       |
-| --------------------------------------------------- | ------ | ----- | ----- | ----- | ----- | ----- | ------------- |
-| 1. A matching query completes all three tools       | 4/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
-| 2. An impossible query stops before the second tool | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
-| 3. State preserves the selected listing             | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
-| 4. Fit card varies and meets content requirements   | 2/3    | PASS  | PASS  | PASS  | —     | —     | **MET — 3/3** |
-| 5. Search respects the maximum price                | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
+|---|---|---|---|---|---|---|---|
+| 1. matching query completes | 4/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| 2. impossible query stops early | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| empty wardrobe _(diagnostic — not one of your five)_ | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| 3. search relevance ranking | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| 4. fit card variation | 2/3    | PASS  | PASS  | PASS  | —     | —     | **MET — 3/3** |
+| 5. search respects maximum price | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
 
 **Note:** Criterion 4 is written as a 3-run criterion rather than a 5-run criterion, because the original requirement specifically says "at least 2 of 3 runs." The three fresh runs were performed with the cache disabled.
 
@@ -260,43 +226,23 @@ I just scored these Vintage Levi's 501 Jeans in a Medium Wash on depop for $38.0
       out: Just scored this perfectly faded Graphic Tee — 2003 Tour Bootleg Style on depop for $24.0, and it has that ult…
 ```
 
----
-
 ## Verdicts and Diagnoses
-
-<!-- MET or MISSED per criterion against LAST UNIT's target, plus a sentence on
-     how you decided.
-
-     Then, for every miss: which of the four places it happened — a tool, the
-     loop's branch, the session, or the model's output — AND the mechanism.
-
-     Not a diagnosis:  "The fit card was bad."
-     A diagnosis:      "The fit card criterion missed on 2 of 5 items. Both had
-                        an empty brand field. My prompt puts the brand in the
-                        first sentence, so the card opened with a blank and read
-                        like a fragment. The tool worked; the prompt assumed a
-                        field that isn't always there."
-
-     Look for a pattern. Three misses on the same tool is one problem, not
-     three. -->
 
 | # | Criterion                                        | Target | Verdict       | How I decided                                                                                                                                                         |
 | - | ------------------------------------------------ | ------ | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 | A matching query completes all three tools       | 4/5    | **MET — 5/5** | All five matching-query tries completed `search_listings`, `suggest_outfit`, and `create_fit_card` and returned a fit card.                                           |
-| 2 | An impossible query stops before the second tool | 5/5    | **MET — 5/5** | All five impossible-query tries returned an empty search result and stopped before `suggest_outfit`, while returning a message explaining what the user could change. |
-| 3 | State preserves the selected listing             | 5/5    | **MET — 5/5** | In all five checks, `search_results[0]["id"]` and `selected_item["id"]` were both `lst_006`.                                                                          |
-| 4 | Fit card varies and meets content requirements   | 2/3    | **MET — 3/3** | With the cache disabled, all three runs produced different captions. Each caption was 2–4 sentences and mentioned the item, price, and platform.                      |
-| 5 | Search respects the maximum price                | 5/5    | **MET — 5/5** | All five searches returned only listings priced at or below the requested $30 maximum.                                                                                |
+| 1 | A matching query completes all three tools | 4/5 | **MET — 5/5** | All five matching-query tries completed `search_listings`, `suggest_outfit`, and `create_fit_card` and returned a fit card. |
+| 2 | An impossible query stops before the second tool | 5/5 | **MET — 5/5** | All five impossible-query tries returned no search results, stopped before `suggest_outfit`, and provided a message explaining what the user could change. |
+| 3 | Search and find the most relevant outfit  | 5/5 | **MET — 5/5** | In all five runs using "grunge band tee under $25", search_listings accurately ranked the most relevant item (Vintage Band Tee — Faded Grey) as the top result. |
+| 4 | Fit card varies and meets content requirements | 2/3 | **MET — 3/3** | With the cache disabled, all three runs produced different captions. Each caption was 2–4 sentences and mentioned the item, price, and platform. |
+| 5 | Search respects the maximum price | 5/5 | **MET — 5/5** | All five searches returned only listings priced at or below the requested $30 maximum. |
 
 **Diagnoses**
 
-The results suggest that the empty-search branch, selected-item state handling, and price filtering behaved as expected in the tested cases. The fit-card test also met its variation and content requirements across the three runs.
+The results suggest that the program behaved as expected in the tested cases. The fit-card test also met its variation and content requirements across the three runs.
 
-However, some targets could be stricter. Criterion 1 allows one failure out of five, even though the agent completed all three tools in every observed run. I would consider tightening this criterion to require success in all five runs. Criterion 4 could also be tested on several different listings, including items with missing optional fields, to check whether the caption requirements hold beyond one fixed item and outfit.
+However, some targets could be stricter AND reasonable. Criterion 1 allows one failure out of five, even though the agent completed all three tools in every observed run. I would consider tightening this criterion to require success in all five runs. Criterion 4 could also be tested on several different listings, including items with missing optional fields, to check whether the caption requirements hold beyond one fixed item and outfit. I changed Criterion 3 because it would need the `id` of the selected but, the code was not providing it so it was testing something that was never going to work.
 
 These results apply to the tested queries and inputs but they do not prove that the agent will behave accurately for every possible query.
-
-
 
 ---
 

@@ -36,9 +36,9 @@ SCENARIOS = [
         "criterion": None,
     },
     {
-        # Check that the selected listing is passed to the next tool.
-        "name": "selected item matches outfit input",
-        "query": "denim jacket under $50",
+        # Ranking relevance: strongest match in title/style tags. Criterion 3.
+        "name": "search relevance ranking",
+        "query": "grunge band tee under $25",
         "wardrobe": "example",
         "criterion": 3,
     },

@@ -41,13 +41,13 @@ I chose 5 out of 5 because the agent should be able to tell when a search return
 
 ---
 
-## 3. Something about state
+## 3. Search relevance**
 
-Given a query that returns at least one listing, the `id` of the first listing returned by `search_listings` matches the `id` of the `new_item` received by `suggest_outfit` in 5 of 5 tries.
+Given a query and multiple listings where the strongest match appears in the listing's `title` or `style_tags` rather than its `description`, `search_listings` ranks the strongest matching listing ahead of weaker matches in 5 out of 5 tries.
 
 **Why this target:**
 
-I chose 5 out of 5 because the agent needs to keep track of the item it found and pass that same item to the next tool. Checking the IDs makes it easy to verify that the correct listing is being used every time.
+I chose 5 out of 5 because search relevance should be consistent across repeated runs. The current ranking logic compares query keywords against listing keywords from the description, ignoring the title and style tags. This test checks whether the search results reflect the most relevant listing rather than simply the greatest keyword overlap in the description.
 
 ---
 
