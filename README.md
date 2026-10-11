@@ -180,6 +180,11 @@ I just scored these Vintage Levi's 501 Jeans in a Medium Wash on depop for $38.0
 * **What came back:** We traced the issue to `tools.py`, where I had written `.upper` instead of `.upper()`. This meant Python was storing a method reference instead of the uppercase string I needed.
 * **What I changed:** I added the missing parentheses to call `.upper()` and return the actual string. I then checked the code to make sure size tokens such as `S/M` were split and processed correctly.
 
+**Moment 3 — Removing em dashes and cleaning up text formatting**
+
+* **What I asked for:** I asked Gemini to help me refine my prompt instructions to prevent the model from pulling raw em dashes (—) straight from data titles and to enforce a more natural phrasing.
+* **What came back:** It provided structured prompt constraints that  forbade em dashes and mandated automatic substitution rules.
+* **What I changed:** I updated the prompt in create_fit_card to instruct the model to strip out em dashes from item titles and avoid robotic AI style patterns, which stabilized the formatting and improved caption readability across all test runs.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -283,7 +288,7 @@ These results apply to the tested queries and inputs but they do not prove that 
 Things to change: try broader words — 'jacket' finds more than 'cropped corduroy jacket'; drop the size, or try a neighbouring one; raise the price ceiling above $5.
 ```
 
-**On the MCP move:** I moved `search_listings` from a direct Python function call to an MCP tool registered in `mcp_server.py`. In `agent.py::run_agent`, the agent now calls `call_tool("search_listings", {...})` through `mcp_client.py`. The tool's inputs and returned listing dictionaries remain the same. After the change, the normal query still completed all five trace steps, and the empty-search query still stopped after the search returned an empty list. The traces confirm that the MCP call is working and the agent's branch behavior remains intact.
+**On the MCP move:** I moved search_listings from a direct Python function call to an MCP tool registered in mcp_server.py. In agent.py::run_agent, the agent now calls call_tool("search_listings", {...}) through mcp_client.py. The tool's inputs and returned listing dictionaries remain the same. After the change, the normal query still completed all five trace steps, and the empty-search query still stopped after the search returned an empty list. The traces confirm that the MCP call is working and the agent's branch behavior remains intact.
 
 
 
