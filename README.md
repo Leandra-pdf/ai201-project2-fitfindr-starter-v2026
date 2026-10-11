@@ -290,7 +290,11 @@ I just scored these Vintage Levi's 501 Jeans in a Medium Wash on depop for $38.0
 
 **Diagnoses**
 
-There were no criterion misses in the Before evaluation, so there are no failure diagnoses to report.
+The results suggest that the empty-search branch, selected-item state handling, and price filtering behaved as expected in the tested cases. The fit-card test also met its variation and content requirements across the three runs.
+
+However, some targets could be stricter. Criterion 1 allows one failure out of five, even though the agent completed all three tools in every observed run. I would consider tightening this criterion to require success in all five runs. Criterion 4 could also be tested on several different listings, including items with missing optional fields, to check whether the caption requirements hold beyond one fixed item and outfit.
+
+These results apply to the tested queries and inputs but they do not prove that the agent will behave accurately for every possible query.
 
 
 
