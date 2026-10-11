@@ -298,16 +298,6 @@ There were no criterion misses in the Before evaluation, so there are no failure
 
 ## Loop Trace
 
-<!-- One full run, printed step by step, with the MCP call visible in it.
-
-     `python app.py ask '...' --trace` once you've added the trace.step()
-     calls in Milestone 2.
-
-     Worth pasting BOTH the happy path and the empty-search path. The empty
-     one should be visibly shorter, because it stops. If your two traces are
-     the same length, your branch isn't working — and this is the fastest way
-     anyone will ever find that out. -->
-
 **Happy path**
 
 ```
@@ -343,10 +333,7 @@ There were no criterion misses in the Before evaluation, so there are no failure
 Things to change: try broader words — 'jacket' finds more than 'cropped corduroy jacket'; drop the size, or try a neighbouring one; raise the price ceiling above $5.
 ```
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
-behaved differently afterwards. If the rewire didn't work, say exactly where it
-broke — the error text and the last thing that worked. That earns the point in
-full. -->
+**On the MCP move:** I moved `search_listings` from a direct Python function call to an MCP tool registered in `mcp_server.py`. In `agent.py::run_agent`, the agent now calls `call_tool("search_listings", {...})` through `mcp_client.py`. The tool's inputs and returned listing dictionaries remain the same. After the change, the normal query still completed all five trace steps, and the empty-search query still stopped after the search returned an empty list. The traces confirm that the MCP call is working and the agent's branch behavior remains intact.
 
 
 
