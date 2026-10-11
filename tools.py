@@ -299,26 +299,24 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
     style_tags = new_item.get("style_tags", [])
 
     prompt = f"""
-    You are a creative fashion copywriter writing a natural social media
-    caption for a secondhand fashion find.
+    Objective: Write a compelling, natural social media caption for a secondhand fashion find based on the provided item details and outfit suggestion.
 
-    Write a caption of exactly 2 to 4 sentences that:
-    - Mentions the item's title: {title}
-    - Mentions its price: ${price}
-    - Mentions the platform: {platform}
-    - Describes the outfit's vibe in a specific, appealing way.
-    - Sounds like a real person sharing a find, not a product listing.
-    - Includes the outfit details below.
-    - Uses natural wording and avoids unnecessary repetition.
+    Instructions & Constraints:
+    1. Length: The response must consist of strictly 2 to 4 sentences in total. Do not write fewer than 2 sentences and do not exceed 4 sentences.
+    2. Sentence Structure: Avoid run-on sentences, overly long clauses, and choppy ultra-short fragments. Keep every sentence smoothly paced and balanced.
+    3. Required Inclusions (must appear once):
+       - Item Title: {title.replace('—', ' ').replace('-', ' ')}
+       - Price: ${price}
+       - Platform: {platform}
+    4. Content Integration: Incorporate the provided outfit suggestion naturally, blending the new item with the suggested wardrobe pieces.
+    5. Anti-AI Style Rules: Do not use em dashes (—), en dashes for punctuation, or typical AI buzzwords/filler phrases. If the item title or source data contains an em dash (e.g., 'Vintage Band Tee — Faded Grey'), strip it out completely and replace it with natural spacing or a comma so it never appears in the output. Write like a real person sharing an exciting thrift find on social media.
+    6. Formatting: Return ONLY the raw caption text. Do not include headings, introductory remarks, bullet points, or quotation marks.
 
-    Item description: {description}
-    Colors: {colors}
-    Style tags: {style_tags}
-
-    Outfit suggestion:
-    {outfit}
-
-    Return only the caption, without a heading or quotation marks.
+    Context Data:
+    - Item Description: {description}
+    - Item Colors: {colors}
+    - Style Tags: {style_tags}
+    - Outfit Suggestion: {outfit}
     """
 
     response = generate(prompt)

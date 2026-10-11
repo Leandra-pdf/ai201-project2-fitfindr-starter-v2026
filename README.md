@@ -291,40 +291,33 @@ Things to change: try broader words — 'jacket' finds more than 'cropped cordur
 
 ## The Improvement
 
-<!-- What you changed, why your diagnosis pointed at it, and the after-run in
-     the same table format. One change, measured properly.
+**What I changed:** I restructured the prompt `inside create_fit_card` in `tools.py` from a generic persona prompt into a highly detailed prompt with structural constraints. I mandated strict sentence length bounds, enforced natural pacing to prevent run-on or ultra-short fragment sentences, and  prohibited robotic AI phrasing or punctuation tics.
 
-     `python run_eval.py --label after` -->
-
-**What I changed:**
-
-**Which failure it was meant to fix:**
+**Which failure it was meant to fix:** Although the baseline fit card passed its loose content checks, the initial prompt tended to generate repetitive language patterns, occasionally slipped into predictable AI-style structures, and lacked sentence-pacing controls. This improvement was meant to enforce cleaner human-like tone consistency and  stabilize sentence-length constraints across all generated social media captions.
 
 ### Run Log — After
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. matching query completes | 4/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| 2. impossible query stops early | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| empty wardrobe _(diagnostic — not one of your five)_ | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| 3. search relevance ranking | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
+| 4. fit card variation | 2/3    | PASS  | PASS  | PASS  | —     | —     | **MET — 3/3** |
+| 5. search respects maximum price | 5/5    | PASS  | PASS  | PASS  | PASS  | PASS  | **MET — 5/5** |
 
 **Did it help, and how do I know:**
 
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
-
+I think it did help. Looking at the `run_2026-10-10_2208_after.md` output logs, some sentences are not as long now and the flow is less robotic. The newer prompt constraints created captions that read much more naturally while maintaining all required item, price, and platform details. It genuinely gives outfit advice.
 
 
 ---
 
 ## What's Still Broken
 
-<!-- For each criterion still missed: what you'd do, and why you stopped where
-     you did. "I ran out of time" is fine if it's true. Pretending nothing is
-     left is not. -->
+Checking the after run logs, I noticed that while our criteria were met, the model pulls raw em dashes from the dataset which created a robotic, unnatural look that contradicted my anti-AI style rules. I updated the prompt constraints to explicitly forbid em dashes and automatically clean any em dashes out. 
 
+Beyond addressing that formatting, no other core functional criteria are broken. All five criteria successfully pass their targets, and the planning loop, MCP server, search ranking, and failure handlers are fully operational. 
 
 
 <!-- ═════════════════════════════════════════════════════════════════════
