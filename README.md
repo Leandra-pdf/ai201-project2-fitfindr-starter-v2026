@@ -363,9 +363,9 @@ Beyond addressing that formatting, no other core functional criteria are broken.
 
 📖 **How to run this project: [RUNNING.md](RUNNING.md)**
 
-## Capstone
+# Capstone
 
-# The Shape
+## The Shape
 
 I chose **Build C: deploy, instrument, and add one capability** for FitFindr. FitFindr already searches clothing listings based on a user's request, but its original ranking only considered keyword matches in listing descriptions.
 
