@@ -1,24 +1,5 @@
 # Acceptance criteria — FitFindr
 
-Five criteria that say what "working" means for this agent, written in unit 3
-**before** any results existed.
-
-An acceptance criterion names a target: a number, a count, a rate, or something
-a person could plainly observe. *"The agent handles errors"* is an opinion.
-*"When search returns nothing, the agent stops before calling the second tool,
-in 5 of 5 tries"* is a criterion.
-
-Under each one, write a sentence or two on **why that target** and not a
-stricter one. A reason that says something about your tools, your loop, or the
-data earns credit; *"80% seemed reasonable"* does not.
-
-> Missing your own targets next unit costs you nothing. Setting a target so
-> easy you can't miss it does.
-
-**Two are written for you. You write three.**
-
----
-
 ## 1. A matching query completes all three tools
 
 Given a query that matches at least one listing, the agent completes all three
@@ -73,34 +54,50 @@ I picked 5 out of 5 because the price limit is a clear requirement, not somethin
 
 ---
 
-<!-- ─────────────────────────────────────────────────────────────────────────
-     UNIT 4 — read this before you change anything above.
+## **6. Weighted reranking prioritizes stronger matches**
 
-     If a criterion turns out to be BROKEN rather than merely unmet, you can
-     revise it, and that earns credit. But never delete or edit the original
-     line. Add the revision underneath it, like this:
+Given a query and multiple listings where the strongest match appears in the listing's `title` or `style_tags` rather than its `description`, the reranking logic places the strongest matching listing ahead of weaker matches in 5 out of 5 controlled test cases.
 
-         ## 4. Something about the fit card
+**Why this target:**
 
-         The fit card is different every time.
+I chose 5 out of 5 because the ranking logic uses fixed weights for title, style tags, and description matches. Given the same query and listings, the strongest match should consistently receive the highest score. This tests whether the new weighted ranking actually prioritizes the most relevant listings.
 
-         **Why this target:** ...
+---
 
-         > **Revised in unit 4:** For 5 different items, the 5 fit cards share
-         > no opening sentence.
-         >
-         > **Why revised:** "different" wasn't checkable — two cards that
-         > differed by one word still counted. The new version is something I
-         > can actually score.
+## **7. Reranking preserves price and size filters**
 
-     That's a revision because the criterion couldn't be MEASURED.
+Given queries with a maximum price or requested size, every listing returned by the reranking process satisfies the specified price and size restrictions in 10 out of 10 test cases.
 
-     Lowering a target because you missed it is not a revision, and it costs
-     you the point:
+**Why this target:**
 
-         ✗ "I said the empty search stops it 5 of 5 times, but I got 3 of 5,
-            so 3 of 5 is more realistic."
+I chose 10 out of 10 because reranking should only change the order of matching listings, not which listings are allowed through the filters. Returning an item over someone's budget or in the wrong size would make the search results misleading. These restrictions are deterministic, so I expect them to be respected every time.
 
-     A number you missed stays where it is, gets diagnosed, and gets a fix
-     attempted. That's where the points are.
-     ───────────────────────────────────────────────────────────────────────── -->
+---
+
+## **8. Deployed searches meet a response-time target**
+
+Given 10 valid search requests to the deployed `/ask` endpoint, at least 9 out of 10 complete within 5 seconds, as measured by the request duration in the application logs.
+
+**Why this target:**
+
+I chose 9 out of 10 because new searches take longer to run. Five seconds gives the user a reasonable wait time while allowing for delays. Measuring the duration through the logs also tests whether the instrumentation provides useful performance information.
+
+---
+
+## **9. Deployed endpoints return expected responses**
+
+Given 10 requests to the deployed `/health` and `/ask` endpoints using valid inputs, all 10 return HTTP 200 responses with the expected response structure.
+
+**Why this target:**
+
+I chose 10 out of 10 because these are basic endpoint requirements. The health endpoint should confirm that the application is running, and the ask endpoint should return a successful response for valid searches. A failed request would indicate a deployment or application problem that should be investigated.
+
+---
+
+## **10. Failed requests are captured in the logs**
+
+Given 5 requests that intentionally trigger errors, all 5 produce log entries containing the request path, duration, HTTP status, and error information.
+
+**Why this target:**
+
+I chose 5 out of 5 because logging is intended to help identify and diagnose failures. If a request fails but the logs don't capture what happened, it becomes much harder to investigate problems in the deployed application. Since the application controls its own logging, these details should be recorded consistently.
