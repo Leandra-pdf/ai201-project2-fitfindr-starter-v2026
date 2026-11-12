@@ -362,3 +362,25 @@ Beyond addressing that formatting, no other core functional criteria are broken.
 ---
 
 📖 **How to run this project: [RUNNING.md](RUNNING.md)**
+
+## Capstone
+
+# The Shape
+
+I chose **Build C: deploy, instrument, and add one capability** for FitFindr. FitFindr already searches clothing listings based on a user's request, but its original ranking only considered keyword matches in listing descriptions.
+
+I'm extending the search with a **weighted keyword reranker** that considers three listing fields:
+
+- **Title:** weight 3
+- **Style tags:** weight 2
+- **Description:** weight 1
+
+This gives more importance to direct matches in listing titles and style tags while still using descriptions to identify additional relevant results. I'll also deploy the application to Render and add instrumentation so I can observe how the application performs.
+
+### What's Out of Scope
+
+To keep this extension focused on one capability, I'm not:
+
+- Adding a second retriever, vector search, or embedding-based search.
+- Changing the existing listing data structure or rebuilding the search system.
+- Redesigning the user interface or adding new outfit recommendation and fit-card features.
