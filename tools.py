@@ -179,11 +179,9 @@ def search_listings(
         ):
             continue
 
-        # Score based on keyword overlap with the description.
-        listing_keywords = _keywords(
-            str(listing.get("description", ""))
-        )
-        score = len(query_keywords & listing_keywords)
+        # Calculate a weighted relevance score using the title,
+        # style tags, and description.
+        score = _listing_score(query_keywords, listing)
 
         if score > 0:
             scored_listings.append((score, listing))
