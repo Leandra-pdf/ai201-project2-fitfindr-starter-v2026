@@ -56,6 +56,51 @@ def _size_matches(wanted: str, listing_size: str) -> bool:
         return True
     return bool(_size_tokens(wanted) & listing_tokens)
 
+def _listing_score(query_keywords: set[str], listing: dict) -> int:
+    """
+    Calculate a weighted relevance score for a listing based on how well
+    its information matches the user's search keywords.
+
+    Instead of checking only the listing description, this function compares
+    the query keywords against three listing fields:
+        - title: The most important field, weighted 3 points per match.
+        - style_tags: Weighted 2 points per match.
+        - description: Weighted 1 point per match.
+
+    Each field is converted into a set of lowercase keywords using
+    _keywords(), which removes common stopwords and filters out short words.
+    The function then counts how many query keywords overlap with each field.
+
+    The three scores are multiplied by their respective weights and added
+    together. A higher total means the listing is a stronger match for the
+    user's search.
+
+    Args:
+        query_keywords: A set of cleaned keywords extracted from the user's
+                        search description.
+        listing: A dictionary containing listing information, including
+                 title, style_tags, and description.
+
+    Returns:
+        An integer representing the listing's weighted relevance score.
+        Returns 0 when none of the query keywords match any of the fields.
+    """
+
+    title_keywords = _keywords(str(listing.get("title", "")))
+    style_tags = listing.get("style_tags") or []
+    style_keywords = _keywords(" ".join(str(tag) for tag in style_tags))
+    description_keywords = _keywords(str(listing.get("description", "")))
+
+    title_score = len(query_keywords & title_keywords)
+    style_score = len(query_keywords & style_keywords)
+    description_score = len(query_keywords & description_keywords)
+
+    return (
+        title_score * 3
+        + style_score * 2
+        + description_score
+    )
+
 # ── Tool 1: search_listings ───────────────────────────────────────────────────
 
 def search_listings(
