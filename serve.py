@@ -12,41 +12,135 @@ same `run_agent()` your CLI calls. **No new agent logic lives here.** If your
 loop works from `python app.py ask`, it works from here; if it doesn't, fix it
 there, not in this file.
 
-Two routes:
+Routes:
 
-    POST /ask       {"query": "vintage graphic tee under $30",
-                     "wardrobe": {...}}     ← wardrobe is optional
-    GET  /health    is it awake?
+    GET  /           FitFindr homepage
+    GET  /ask        Search form
+    POST /ask        Submit a search
+    GET  /health     Is the server awake?
 
-`/ask` returns the session dict from `run_agent()` as JSON, unchanged — the
-same keys you print from the command line, including `error`. Read
-`session["error"]` first, exactly as you do everywhere else.
+`/ask` supports two kinds of POST requests:
+
+    Browser form:  sends form data and receives an HTML results page.
+    JSON API:      sends {"query": "...", "wardrobe": {...}} and receives
+                   the session dict from `run_agent()` as JSON, unchanged.
+
+The wardrobe is optional. Without one, the example wardrobe is used.
+
+The JSON response keeps the same keys you print from the command line,
+including `error`. Read `session["error"]` first, exactly as you do everywhere
+else.
 
 It runs **one request at a time**, and one route is deliberately slower than a
 web server has to be. The reason is worth reading before you deploy: see the
 note above `_one_at_a_time` below — it also decides which gunicorn worker you
 can use.
 
-⚠️ There is deliberately NO logging, NO timing and NO request counting in this
-file. That is unit 9's follow-along: you instrument this yourself, first, and
-then deploy it. A structured log you were handed teaches you nothing about
-what belongs in one — and the timing field is the one everybody skips.
+Requests are instrumented with structured logs. Each completed request records
+its timestamp, method, path, input, output summary, duration, status, errors,
+and relevant system information. Logs go to `fitfindr.log` and the server's
+standard output (which Render captures).
 """
 
 import os
 import sys
+import json
+import logging
+import platform
 import threading
+import time
+from datetime import datetime, timezone
 
 # config first, and before anything that talks to the model: it loads your .env
 # and fixes the Windows console encoding for every module that imports it.
 import config  # noqa: F401
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, render_template, request, g
+from werkzeug.exceptions import HTTPException
 
 from agent import run_agent
 from utils.data_loader import get_example_wardrobe
 
 app = Flask(__name__)
+
+
+# ── structured logging ────────────────────────────────────────────────────────
+# Write logs to a local file so they can be inspected after running the app.
+# Also write to standard output so Render can collect them in Runtime Logs.
+
+logger = logging.getLogger("fitfindr")
+logger.setLevel(logging.INFO)
+logger.propagate = False
+
+if not logger.handlers:
+    formatter = logging.Formatter("%(message)s")
+
+    file_handler = logging.FileHandler("fitfindr.log", encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+
+
+def log_request(query, output, duration, status, error=None,
+                method=None, path=None):
+    """Write one structured record for an HTTP request."""
+
+    record = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "method": method,
+        "path": path,
+        "input": query,
+        "output": output,
+        "duration_seconds": round(duration, 3),
+        "status": status,
+        "error": error,
+        "python_version": platform.python_version(),
+        "platform": platform.system()
+    }
+
+    logger.info(json.dumps(record, default=str))
+
+
+@app.before_request
+def start_request():
+    """Capture the start time and input before handling each request."""
+
+    g.start_time = time.perf_counter()
+    g.log_query = None
+    g.log_output = None
+    g.log_error = None
+
+    # Capture the query for logging without assuming the JSON body is valid.
+    if request.is_json:
+        payload = request.get_json(silent=True)
+
+        if isinstance(payload, dict):
+            g.log_query = payload.get("query")
+
+    elif request.method == "POST":
+        g.log_query = request.form.get("query")
+
+
+@app.after_request
+def finish_request(response):
+    """Log every completed request, including errors."""
+
+    duration = time.perf_counter() - g.start_time
+
+    log_request(
+        query=g.log_query,
+        output=g.log_output,
+        duration=duration,
+        status=response.status_code,
+        error=g.log_error,
+        method=request.method,
+        path=request.path
+    )
+
+    return response
 
 
 # ── one request at a time ─────────────────────────────────────────────────────
@@ -67,9 +161,9 @@ app = Flask(__name__)
 #
 # What the lock covers is exactly the agent run: the part that spawns
 # processes and calls the model. Reading the request, rejecting a bad one, and
-# turning the answer into JSON all happen outside it — so a request with a
-# malformed body comes straight back with a 400 instead of queueing behind
-# somebody else's agent.
+# turning the answer into HTML or JSON all happen outside it — so a request
+# with a malformed body comes straight back with a 400 instead of queueing
+# behind somebody else's agent.
 #
 # Serialising the runs costs you nothing here — this is one user asking one
 # question — and it keeps the deployed behaviour identical to the CLI's. When
@@ -91,65 +185,179 @@ app = Flask(__name__)
 _one_at_a_time = threading.Lock()
 
 
+@app.get("/")
+def home():
+    """Show the FitFindr homepage."""
+    g.log_output = {"page": "homepage"}
+    return render_template("index.html")
+
+
 @app.get("/health")
 def health():
     """Is the server awake? A host pings something like this to find out."""
+    g.log_output = {"status": "ok"}
     return jsonify({"status": "ok"})
 
 
-@app.post("/ask")
+@app.route("/ask", methods=["GET", "POST"])
 def ask():
     """
-    Run the agent on one query.
+    Display the search form or run the agent on one query.
 
-    In:   {"query": "...", "wardrobe": {...}}   wardrobe optional — leave it
-                                                out and you get the same
-                                                example wardrobe the CLI uses.
-    Out:  the session dict from run_agent(), as JSON.
+    GET:
+        Display the HTML search form.
+
+    POST with form data:
+        Run the agent and display an HTML results page.
+
+    POST with JSON:
+        Run the agent and return the session dict as JSON, unchanged.
     """
-    payload = request.get_json(silent=True) or {}
-    query = (payload.get("query") or "").strip()
-    if not query:
-        # 400 rather than a stack trace: the caller can act on this one.
-        return jsonify({"error": "Send JSON with a 'query' field, e.g. "
-                                 '{"query": "vintage graphic tee under $30"}'}), 400
 
-    wardrobe = payload.get("wardrobe")
+    # A browser visit to /ask should show the form, not return a 405.
+    if request.method == "GET":
+        g.log_output = {"page": "search_form"}
+        return render_template("ask.html", query="", session=None, error=None)
+
+    # Determine whether this is a browser form submission or a JSON API call.
+    is_api_request = request.is_json
+
+    if is_api_request:
+        payload = request.get_json(silent=True)
+
+        # A JSON request must contain an object, not a list, string, or invalid
+        # JSON body. Checking the type prevents an AttributeError on payload.get.
+        if not isinstance(payload, dict):
+            error = "Invalid JSON body. Send a JSON object with a 'query' field."
+            g.log_error = error
+            g.log_output = {"error": error}
+            return jsonify({"error": error}), 400
+
+        query = payload.get("query")
+        wardrobe = payload.get("wardrobe")
+
+    else:
+        query = request.form.get("query")
+        wardrobe = None
+
+    if not isinstance(query, str) or not query.strip():
+        error = "Please enter a search query."
+        g.log_error = error
+        g.log_output = {"error": error}
+
+        if is_api_request:
+            return jsonify({"error": error}), 400
+
+        return render_template(
+            "ask.html",
+            query="",
+            session=None,
+            error=error
+        ), 400
+
+    query = query.strip()
+    g.log_query = query
+
     if not isinstance(wardrobe, dict):
         wardrobe = get_example_wardrobe()
 
-    # A queued request should look like a queued request. Without this the
-    # second caller just sits there, and "slow" and "waiting its turn" are
-    # indistinguishable from the outside — which is how people conclude the
-    # deployment is broken when it is behaving exactly as designed.
-    #
-    # This is NOT the logging you add in the follow-along. It prints nothing
-    # on the normal path, carries no timing and counts nothing; it says only
-    # that this request had to wait. `locked()` can be a moment out of date,
-    # so the note is occasionally missed — which costs nothing, because
-    # nothing depends on it.
+    # The lock keeps overlapping requests from starting multiple agent runs.
     if _one_at_a_time.locked():
-        print(
-            "  [serve] another request is still running. This one is waiting "
-            "its turn — serve.py handles one at a time, on purpose.",
-            file=sys.stderr,
-            flush=True,
-        )
+        logger.info(json.dumps({
+            "event": "request_waiting",
+            "path": request.path,
+            "method": request.method
+        }))
 
-    failure = None
-    session = None
-    with _one_at_a_time:
-        try:
+    try:
+        with _one_at_a_time:
             session = run_agent(query, wardrobe)
-        except Exception as exc:  # noqa: BLE001 — a 500 with a sentence beats a hang
-            failure = f"{type(exc).__name__}: {exc}"
 
-    # Outside the lock: building a response is not work the next caller should
-    # be waiting on.
-    if failure is not None:
-        return jsonify({"error": failure}), 500
+        if not isinstance(session, dict):
+            raise ValueError("The agent returned an invalid session.")
 
-    return jsonify(session)
+    except Exception as exc:
+        # Keep internal exception details in the log, not in the browser.
+        failure = f"{type(exc).__name__}: {exc}"
+        g.log_error = failure
+        g.log_output = {"error": "Agent request failed."}
+
+        if is_api_request:
+            return jsonify({"error": "The FitFindr request failed."}), 500
+
+        return render_template(
+            "ask.html",
+            query=query,
+            session=None,
+            error="Something went wrong while searching. Please try again."
+        ), 500
+
+    # Log a summary rather than the entire generated response.
+    selected_item = session.get("selected_item")
+    selected_item_id = None
+
+    if isinstance(selected_item, dict):
+        selected_item_id = selected_item.get("id")
+
+    search_results = session.get("search_results", [])
+    if isinstance(search_results, (list, dict)):
+        result_count = len(search_results)
+    else:
+        result_count = 0
+
+    output_summary = {
+        "selected_item": selected_item_id,
+        "search_result_count": result_count,
+        "outfit_suggestion_created": bool(session.get("outfit_suggestion")),
+        "fit_card_created": bool(session.get("fit_card")),
+        "agent_error": session.get("error")
+    }
+
+    g.log_output = output_summary
+
+    # Keep the agent's own error in the log, even if run_agent returned
+    # normally. The existing API contract still returns the session unchanged.
+    if session.get("error"):
+        g.log_error = session.get("error")
+
+    # JSON API clients receive the same session structure as before.
+    if is_api_request:
+        return jsonify(session)
+
+    # Browser users receive a rendered HTML results page.
+    return render_template(
+        "ask.html",
+        query=query,
+        session=session,
+        error=session.get("error")
+    )
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(exc):
+    """Handle unexpected errors without exposing internal details to visitors."""
+
+    if isinstance(exc, HTTPException):
+        g.log_error = exc.description
+
+        if request.is_json:
+            return jsonify({"error": exc.description}), exc.code
+
+        return render_template(
+            "index.html",
+            error=exc.description
+        ), exc.code
+
+    g.log_error = f"{type(exc).__name__}: {exc}"
+    g.log_output = {"error": "Unexpected server error."}
+
+    if request.is_json:
+        return jsonify({"error": "An unexpected server error occurred."}), 500
+
+    return render_template(
+        "index.html",
+        error="Something went wrong. Please try again."
+    ), 500
 
 
 if __name__ == "__main__":
@@ -157,7 +365,7 @@ if __name__ == "__main__":
     # listen on through PORT, and it reaches your process from outside the
     # container — bind 127.0.0.1 and nothing but the container itself can
     # connect, which looks exactly like a broken app from the browser.
-    port = int(os.getenv("PORT", "5000"))
+    port = int(os.getenv("PORT", "8080"))
 
     # Never on by default. Flask's debugger executes code typed into a browser,
     # and a deployed app with it on is a stranger's shell. Set AI201_DEBUG=1 in

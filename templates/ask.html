@@ -1,0 +1,74 @@
+
+{% extends "base.html" %}
+
+{% block title %}FitFindr | Find an Outfit{% endblock %}
+
+{% block content %}
+<p><a href="/">← Back to FitFindr home</a></p>
+
+<div class="container">
+    <h1>Find your outfit</h1>
+    <p>Describe what you're looking for.</p>
+
+    <form method="POST" action="/ask">
+        <input
+            type="text"
+            name="query"
+            placeholder="Vintage graphic tee under $30..."
+            value="{{ query }}"
+            required
+        >
+
+        <button type="submit">Find my outfit</button>
+    </form>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+</div>
+
+{% if session %}
+    <div class="result-card">
+        <h2>Your fit card</h2>
+
+        {% if session.fit_card %}
+            <pre>{{ session.fit_card | tojson(indent=2) }}</pre>
+        {% else %}
+            <p>No fit card was created.</p>
+        {% endif %}
+    </div>
+    <div class="result-card">
+        <h2>Selected listing</h2>
+
+        {% if session.selected_item %}
+            <pre>{{ session.selected_item | tojson(indent=2) }}</pre>
+        {% else %}
+            <p>No listing was selected.</p>
+        {% endif %}
+    </div>
+
+    <div class="result-card">
+        <h2>Search results</h2>
+
+        {% if session.search_results %}
+            <pre>{{ session.search_results | tojson(indent=2) }}</pre>
+        {% else %}
+            <p>No search results found.</p>
+        {% endif %}
+    </div>
+
+    <div class="result-card">
+        <h2>Outfit suggestions</h2>
+
+        {% if session.outfit_suggestion %}
+            <div class="outfit-suggestion">
+                {{ session.outfit_suggestion }}
+            </div>
+        {% else %}
+            <p>No outfit suggestion was generated.</p>
+        {% endif %}
+    </div>
+
+
+{% endif %}
+{% endblock %}

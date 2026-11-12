@@ -1,0 +1,29 @@
+
+{% extends "base.html" %}
+
+{% block title %}FitFindr | Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>FitFindr</h1>
+
+    <p>
+        Find clothing listings and discover outfit ideas
+        that match your style and budget.
+    </p>
+
+    <a href="/ask">
+        <button type="button">Find an outfit</button>
+    </a>
+
+    <p>
+        <small>
+            <a href="/health">Check service health</a>
+        </small>
+    </p>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+</div>
+{% endblock %}

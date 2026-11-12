@@ -1,0 +1,81 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FitFindr{% endblock %}</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f7f7f7;
+            color: #222;
+        }
+
+        .container, .result-card {
+            background: white;
+            padding: 24px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+        }
+
+        a {
+            color: #333;
+        }
+
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 12px;
+            margin: 12px 0;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            background: #333;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #555;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            background: #f3f3f3;
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        .error {
+            color: #a40000;
+            background: #ffecec;
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        .result-card h2 {
+            margin-top: 0;
+        }
+
+        .outfit-suggestion {
+            white-space: pre-wrap;
+            line-height: 1.7;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    {% block content %}{% endblock %}
+</body>
+</html>
