@@ -384,3 +384,60 @@ To keep this extension focused on one capability, I'm not:
 - Adding a second retriever, vector search, or embedding-based search.
 - Changing the existing listing data structure or rebuilding the search system.
 - Redesigning the user interface or adding new outfit recommendation and fit-card features.
+
+### What It Costs
+
+I measured FitFindr's request duration using the structured logging instrumentation in `serve.py`. Each HTTP request records its duration in seconds using `time.perf_counter()`.
+
+I ran two batches of 10 successful `/ask` requests with different queries. The first is a cached query and the second is a new one:
+
+| Query | Runs | Average Duration |
+|---|---:|---:|
+| Vintage graphic tee under $30 | 10 | 0.311 seconds |
+| Cute short dresses under $350 | 10 | 0.559 seconds |
+
+All 20 requests returned HTTP 200.
+
+The second batch included one noticeably slower request (3.110 seconds). Its remaining nine requests averaged approximately 0.275 seconds.
+
+These measurements represent end-to-end request duration, including processing and any waiting for external services. They are not a direct measurement of API charges or pure CPU time.
+
+## Instrumentation
+
+FitFindr uses Python's `logging` module to record structured JSON logs for HTTP requests.
+
+Each completed request is logged with:
+- **Timestamp:** UTC timestamp of the request.
+- **Method and path:** HTTP method and endpoint.
+- **Input:** Search query submitted by the user.
+- **Output:** Summary of the selected listing and generated results, or an error response.
+- **Duration:** End-to-end request duration in seconds, measured using `time.perf_counter()`.
+- **Status:** HTTP response status code.
+- **Error:** Error message when a request fails.
+- **System information:** Python version and operating system.
+
+Logs are written to two destinations:
+- `fitfindr.log` for local inspection.
+- Standard output (`stdout`), allowing Render to collect the records in its Runtime Logs.
+
+The following are actual log records from local testing. They include successful requests and validation failures.
+
+### Sample log entries
+
+```jsonl
+{"timestamp":"2026-11-12T02:23:44.835274+00:00","method":"POST","path":"/ask","input":"cute short dresses under $350","output":{"selected_item":"lst_002","search_result_count":2,"outfit_suggestion_created":true,"fit_card_created":true,"agent_error":null},"duration_seconds":0.311,"status":200,"error":null,"python_version":"3.13.1","platform":"Darwin"}
+{"timestamp":"2026-11-12T02:23:45.126872+00:00","method":"POST","path":"/ask","input":"cute short dresses under $350","output":{"selected_item":"lst_002","search_result_count":2,"outfit_suggestion_created":true,"fit_card_created":true,"agent_error":null},"duration_seconds":0.281,"status":200,"error":null,"python_version":"3.13.1","platform":"Darwin"}
+{"timestamp":"2026-11-12T02:23:45.423756+00:00","method":"POST","path":"/ask","input":"cute short dresses under $350","output":{"selected_item":"lst_002","search_result_count":2,"outfit_suggestion_created":true,"fit_card_created":true,"agent_error":null},"duration_seconds":0.288,"status":200,"error":null,"python_version":"3.13.1","platform":"Darwin"}
+{"timestamp":"2026-11-12T02:23:45.725578+00:00","method":"POST","path":"/ask","input":"cute short dresses under $350","output":{"selected_item":"lst_002","search_result_count":2,"outfit_suggestion_created":true,"fit_card_created":true,"agent_error":null},"duration_seconds":0.292,"status":200,"error":null,"python_version":"3.13.1","platform":"Darwin"}
+{"timestamp":"2026-11-12T02:23:45.986755+00:00","method":"POST","path":"/ask","input":"cute short dresses under $350","output":{"selected_item":"lst_002","search_result_count":2,"outfit_suggestion_created":true,"fit_card_created":true,"agent_error":null},"duration_seconds":0.252,"status":200,"error":null,"python_version":"3.13.1","platform":"Darwin"}
+{"timestamp":"2026-11-12T02:23:46.240662+00:00","method":"POST","path":"/ask","input":"cute short dresses under $350","output":{"selected_item":"lst_002","search_result_count":2,"outfit_suggestion_created":true,"fit_card_created":true,"agent_error":null},"duration_seconds":0.245,"status":200,"error":null,"python_version":"3.13.1","platform":"Darwin"}
+{"timestamp":"2026-11-12T02:23:46.526287+00:00","method":"POST","path":"/ask","input":"cute short dresses under $350","output":{"selected_item":"lst_002","search_result_count":2,"outfit_suggestion_created":true,"fit_card_created":true,"agent_error":null},"duration_seconds":0.277,"status":200,"error":null,"python_version":"3.13.1","platform":"Darwin"}
+{"timestamp":"2026-11-12T02:23:46.800753+00:00","method":"POST","path":"/ask","input":"cute short dresses under $350","output":{"selected_item":"lst_002","search_result_count":2,"outfit_suggestion_created":true,"fit_card_created":true,"agent_error":null},"duration_seconds":0.266,"status":200,"error":null,"python_version":"3.13.1","platform":"Darwin"}
+{"timestamp":"2026-11-12T02:23:47.076821+00:00","method":"POST","path":"/ask","input":"cute short dresses under $350","output":{"selected_item":"lst_002","search_result_count":2,"outfit_suggestion_created":true,"fit_card_created":true,"agent_error":null,"python_version":"3.13.1","platform":"Darwin"}
+{"timestamp":"2026-11-12T02:26:13.018443+00:00","method":"POST","path":"/ask","input":"","output":{"error":"Please enter a search query."},"duration_seconds":0.0,"status":400,"error":"Please enter a search query.","python_version":"3.13.1","platform":"Darwin"}
+{"timestamp":"2026-11-12T02:29:38.272925+00:00","method":"POST","path":"/ask","input":null,"output":{"error":"Please enter a search query."},"duration_seconds":0.0,"status":400,"error":"Please enter a search query.","python_version":"3.13.1","platform":"Darwin"}
+```
+
+The successful records show requests returning HTTP 200. The two failed records show that empty or missing queries are rejected with HTTP 400 and that the error is captured in the logs.
+
+The logs also demonstrate that the application records request duration and system information for both successful and failed requests.

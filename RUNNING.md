@@ -1,18 +1,24 @@
 # Running FitFindr
 
-Everything about how the starter works and how to use it.
+Everything about how the app works and how to use it. This guide explains how to run FitFindr locally, use the deployed app, test its HTTP endpoints, and inspect its request logs.
 
----
+## Capstone Deployed app
 
-## Before your first class
+**Live app:** [YOUR_RENDER_URL]
 
-Setup happens **before class**. The [environment setup page](../pages/ide_setup)
-has the per-operating-system commands and the exact versions.
+Replace `YOUR_RENDER_URL` above with the public URL shown for your FitFindr web service in the Render dashboard. The same base URL is used for the home page and API endpoints.
 
-**Same API key you set up in unit 1.** Nothing new to sign up for. There is one
-new package — the MCP SDK, for unit 4 — and it installs with everything else.
+- Open the live app: `https://ai201-project2-fitfindr-starter-v2026-0nk2.onrender.com/`
+- Health check: `https://ai201-project2-fitfindr-starter-v2026-0nk2.onrender.com/health`
+- Search endpoint: `https://ai201-project2-fitfindr-starter-v2026-0nk2.onrender.com/ask` (POST)
 
-From inside this repo after you've forked and cloned it:
+The home page should load the FitFindr interface. The health endpoint should return an `ok` response when the service is running.
+
+## Run locally
+
+### 1. Set up the environment
+
+From the project directory, create and activate a virtual environment, install the requirements, and create your local environment file.
 
 **macOS / Linux**
 
@@ -20,8 +26,7 @@ From inside this repo after you've forked and cloned it:
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # then paste your key into .env
-python test.py
+cp .env.example .env
 ```
 
 **Windows (PowerShell)**
@@ -30,219 +35,167 @@ python test.py
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-copy .env.example .env         # then paste your key into .env
-python test.py
+copy .env.example .env
 ```
 
-**You're ready when `python test.py` passes.**
+Add your `GEMINI_API_KEY` to `.env`. Keep this file private; do not commit API keys to Git.
 
-If it doesn't and you've made one honest attempt at the error, post the
-**whole** output in the help channel.
+Activate the virtual environment whenever you open a new terminal. You should see `(.venv)` in your prompt.
 
-> Activate the virtual environment every time you open a new terminal. You
-> should see `(.venv)` at the start of your prompt.
-
----
-
-## Your first five minutes
-
-Start with the data. Your tools will only be as good as your understanding of
-what they're reading, and ten minutes here saves an hour of confused debugging.
-
-```bash
-python app.py fields                    # what a listing and a wardrobe item hold
-python app.py listings --full -n 6      # read six listings all the way through
-python app.py examples                  # queries worth trying
-python app.py ask 'vintage graphic tee under $30'
-```
-
-> **Quote your queries with single quotes**, on every operating system. In
-> PowerShell, `"vintage graphic tee under $30"` in double quotes silently
-> becomes `vintage graphic tee under ` — PowerShell reads `$30` as a variable
-> and substitutes nothing. You get results with no price ceiling and no error
-> saying so. Single quotes are literal in PowerShell, bash and zsh alike.
-
-That last one runs the loop. All three tools are stubs, so it will tell you the
-loop isn't built yet. **That's the correct starting position** — it runs, and it
-does nothing.
-
----
-
-## Every command
-
-| Command | What it does |
-|---|---|
-| `python test.py` | Checks your environment. Run it whenever something feels off |
-| `python app.py fields` | The fields a listing and a wardrobe item have — **Milestone 1** |
-| `python app.py listings` | Browse the data. `--full` for whole records, `-n` for how many |
-| `python app.py examples` | Queries worth trying, including one that matches nothing |
-| `python app.py ask '...'` | Run the agent on one query — **single quotes** |
-| `python app.py ask` | Keep asking until you press Enter on an empty line |
-| `python agent.py` | Runs both example paths — one that matches, one that can't |
-| `python mcp_server.py` | Starts your MCP server — **unit 4** |
-| `python mcp_client.py` | Asks the server what it offers — **unit 4** |
-| `python run_eval.py --label before` | Runs every scenario five times and writes the run log — **unit 4** |
-| `python serve.py` | Serves the agent over HTTP instead of exiting — **unit 9** |
-
-Useful flags on `ask`:
-
-| Flag | What it does |
-|---|---|
-| `--trace` | Print the loop step by step, once you've added the trace calls |
-| `--empty-wardrobe` | Run as a user with nothing saved — one of unit 4's failure modes |
-
----
-
-## Which command goes with which milestone
-
-### Unit 3 — the build
-
-| Milestone | What you're doing | Where |
-|---|---|---|
-| 1 | Read the data, run the starter | `app.py fields`, `app.py listings --full`, `app.py ask` |
-| 2 | Spec your three tools | README, **Tool Inventory** |
-| 3 | Write your acceptance criteria | `criteria.md` |
-| 4 | Build the three tools | `tools.py`, tested one at a time from a terminal |
-| 5 | Wire the loop and the state | `agent.py::run_agent` |
-| 6 | Write it up | README |
-
-### Unit 4 — the test
-
-| Milestone | What you're doing | Where |
-|---|---|---|
-| 1 | Move one tool onto MCP | `mcp_server.py`, then `mcp_client.call_tool` in `run_agent` |
-| 2 | Break it on purpose, then trace it | `trace.py`, `app.py ask --trace` |
-| 3 | Run your test | `scenarios.py`, then `run_eval.py --label before` |
-| 4 | Call each criterion, diagnose the misses | README |
-| 5 | Fix one thing and re-run | `run_eval.py --label after` |
-| 6 | Say what's still broken | README |
-
----
-
-## Running it somewhere else — **unit 9**
-
-Everything above exits when the command finishes. A host has nothing to keep
-running, so before you can deploy this you need something that stays up.
-`serve.py` is that: the same `run_agent()`, behind two HTTP routes.
-
-On your machine:
+### 2. Start the HTTP server
 
 ```bash
 python serve.py
-curl -X POST http://localhost:8080/ask \
-  -H 'Content-Type: application/json' \
-  -d '{"query": "vintage graphic tee under $30"}'
 ```
 
-On a host, the start command is:
+
+The server starts on port `8080` by default and prints the local address it is listening on.
+
+Start the server:
 
 ```bash
-gunicorn serve:app
+python serve.py
 ```
 
-| Thing | What it means |
+Keep this terminal open while you use the app. Open the local address printed by the server in your browser.
+
+If your setup reads the `PORT` environment variable, you can explicitly choose a different port before starting the server:
+
+```bash
+PORT=8081 python serve.py
+```
+
+If you choose a different port, use that port in your browser address as well. On macOS, port `5000` can sometimes be occupied by AirPlay Receiver.
+
+## Test the HTTP endpoints
+
+Use a second terminal while the server is running.
+
+### Health check
+
+Open this address in a browser, or run:
+
+```bash
+curl -i http://127.0.0.1:8080/health
+```
+
+A successful response indicates that the web service is awake. This checks the server, not the full search-and-generation workflow.
+
+### Submit a search
+
+```bash
+curl -i -X POST http://127.0.0.1:8080/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"vintage graphic tee under $30"}'
+```
+
+A successful request should return HTTP `200` and a JSON response containing the agent's result. The `wardrobe` field is optional; the endpoint accepts a JSON body with a `query` and, when needed, wardrobe information.
+
+To test validation and the failure-logging path, submit an empty query:
+
+```bash
+curl -i -X POST http://127.0.0.1:8080/ask \
+  -H 'Content-Type: application/json' \
+  -d '{"query":""}'
+```
+
+An empty query should return HTTP `400` with the message `Please enter a search query.` This failed request should also appear in the logs.
+
+## Request logging and instrumentation
+
+The Flask app logs every completed HTTP request as a JSON record. The logger writes the same record to two destinations:
+
+- **Local file:** `fitfindr.log`, created in the working directory from which the server is started (normally the project root).
+- **Standard output:** the server terminal locally, and Render Runtime Logs when deployed.
+
+Each record includes:
+
+| Field | Meaning |
 |---|---|
-| `PORT` | The host tells your app which port to listen on by setting this. Both `serve.py` and `gunicorn` read it, and `serve.py` falls back to `8080` on your machine. Don't hard-code a port |
-| `POST /ask` | `{"query": "...", "wardrobe": {...}}` — wardrobe optional. Returns the session dict, `error` and all |
-| `GET /health` | Says `ok` if the app is awake |
-| It answers one request at a time | On purpose. A second request waits for the first to finish, and prints `[serve] another request is still running` while it waits. An MCP tool call starts a whole second Python process, and the free tier's 512 MB has no room for two of those at once — and `generate.py`'s rate-limit counting assumes one caller. The reasoning is written out in `serve.py` |
-| `gunicorn serve:app`, exactly | Not `-k gevent`, not `-k eventlet`, not wrapped for uvicorn. `mcp_client.call_tool` uses `asyncio.run()`, which won't start inside a running event loop, so an async worker breaks **every** MCP call — and only once you've deployed it |
-| The first request is slow | The free tier puts your app to sleep after about fifteen minutes of nothing. The next request wakes it up and waits for it — around a minute. Not a bug, and worth knowing before you demo it |
+| `timestamp` | UTC time when the request was logged |
+| `method` and `path` | HTTP method and route, such as `POST` and `/ask` |
+| `input` | Search query captured from the request, when present |
+| `output` | A summary of the result or the response error |
+| `duration_seconds` | End-to-end request duration, measured with `time.perf_counter()` |
+| `status` | HTTP response status code, such as `200` or `400` |
+| `error` | Error message when the request fails; otherwise `null` |
+| `python_version` | Python version running the request |
+| `platform` | Operating-system identifier, such as `Darwin` on macOS or `Linux` on Render |
 
-`serve.py` ships with **no logging and no timing in it**, on purpose. You add
-that yourself in the follow-along, before you deploy — instrumenting first is
-the point of the session.
+The output summary for `/ask` includes information such as the selected listing, number of search results, whether an outfit suggestion and fit card were created, and any agent error. It does not need to store the entire page or response body to be useful.
 
----
+### View local logs
 
-## Where everything lives
+Run these commands from the project directory in a second terminal:
 
-| File | What it does |
+```bash
+# Show the most recent 20 log records
+tail -n 20 fitfindr.log
+
+# Follow new log records as requests arrive
+tail -f fitfindr.log
+```
+
+Press `Ctrl+C` to stop following the file. Each line is a separate JSON record, so the file can also be inspected with a text editor or a small Python script.
+
+The log file is created when the app handles its first request. If it is not present, confirm that the server is running and that you are checking the same project directory from which `serve.py` was started.
+
+### View deployed logs on Render
+
+1. Sign in to [Render](https://dashboard.render.com/).
+2. Open the FitFindr **Web Service**.
+3. Select **Logs** in the service navigation.
+4. Open or filter to **Runtime Logs**.
+5. Make a request to the deployed app, then refresh or watch the logs for the new JSON record.
+
+The deployed app sends logs to standard output so Render can collect them. The local `fitfindr.log` file is not a durable log store on Render: files on a hosted service's local filesystem may be temporary and can disappear when the service restarts or redeploys. Use Render Runtime Logs to inspect deployed requests.
+
+### Understanding request duration
+
+`duration_seconds` measures the time from the beginning to the completion of the HTTP request. It is end-to-end request time, so it can include application work and waiting for external services; it is not a direct measure of API charges or pure CPU time. A first request can take longer than later requests due to initialization, caching, or external-service variability.
+
+## Deploying / redeploying on Render
+
+The FitFindr web service runs the Flask app through Gunicorn.
+
+For a Render Web Service, the project configuration should use:
+
+| Setting | Value |
 |---|---|
-| `config.py` | Every setting worth changing — **TEMPERATURE and the cache are at the top** |
-| `tools.py` | Your three tools. **Stubs — you build these** |
-| `agent.py` | The planning loop and the session. **Stub — you build this** |
-| `generate.py` | The only thing that calls out to a service. Handles pacing and quota |
-| `trace.py` | The trace helper, and the loop's stop condition |
-| `app.py` | The command line |
-| `serve.py` | The same agent over HTTP, for deploying — **unit 9** |
-| `mcp_server.py` | Your MCP server — **unit 4, you register the tool** |
-| `mcp_client.py` | Calling an MCP tool from your agent. Given to you |
-| `scenarios.py` | What your test runs. **You fill this in** |
-| `run_eval.py` | Runs the scenarios repeatedly and writes the run log |
-| `criteria.md` | Your five acceptance criteria. **You fill this in** |
-| `data/` | 40 listings and the wardrobe schema |
-| `utils/data_loader.py` | Loading the data. Use this rather than reading the files yourself |
-| `results/` | Run logs. **Commit these** — they're your evidence |
+| Runtime | Python |
+| Build command | `pip install -r requirements.txt` |
+| Start command | `gunicorn serve:app` |
+| Environment variable | `GEMINI_API_KEY` — set the secret value in Render's Environment settings |
 
----
+Do not put the API key directly in source code or in this document. After a deployment, open the service's public URL and check `/health`, then submit a search through the app or the `/ask` endpoint. Use Runtime Logs to confirm that requests are being recorded.
 
-## The two settings people go looking for
+Keep the start command as `gunicorn serve:app`. The MCP client uses `asyncio.run()`, which is not compatible with a worker that already runs an event loop; do not switch to an async worker such as gevent/eventlet or wrap this app in an ASGI server without changing that design.
 
-Both are at the top of `config.py`, and the brief points at them by name.
+## Useful project commands
 
-If your fit cards come out **word-for-word identical** every time, it is one of:
-
-- **`CACHE_ENABLED`** — while you build, identical prompts reuse the answer
-  already received. That's deliberate; it makes debugging free. `run_eval.py`
-  turns it off automatically.
-- **`TEMPERATURE`** — at `0.0` the model gives you the same words every time.
-  It ships at `0.9`.
-
----
-
-## About rate limits
-
-**This is the heaviest pair in the course for call volume.** Two of your three
-tools call the model, so one agent run is several requests, and a few runs back
-to back while debugging can cross the per-minute limit.
-
-`generate.py` handles it:
-
-- **It paces itself** and says when it's waiting. **A pause is the starter
-  doing its job, not a bug.**
-- **It reuses answers** to prompts already sent, while you build.
-- **It stops** if a session makes an unreasonable number of calls, rather than
-  draining your day's allowance. For an agent, that usually means a loop isn't
-  ending — look for that before raising the number.
-- **It counts your calls** and prints the total when you exit.
-
-`config.MAX_ITERATIONS` is the loop's own stop condition. Your loop this unit
-is short enough that you may never hit it. Keep it — a missing stop condition
-is the most common architectural failure in production agents.
-
----
-
-## When something goes wrong
-
-| What you see | What it means |
+| Command | What it does |
 |---|---|
-| `The planning loop isn't built yet` | Correct, at the start. That's the TODO in `agent.py` |
-| `No GEMINI_API_KEY found` | No `.env`, or the key wasn't pasted in. On Windows check it didn't save as `.env.txt` |
-| A message saying the model couldn't be reached | Usually a bad key. This is also **exactly what unit 4 Milestone 2 asks you to trigger on purpose** |
-| `[rate limit] ... Waiting 34s` | Working as intended. Leave it |
-| `[serve] another request is still running` | Also working as intended. `serve.py` answers one request at a time; yours is queued behind one that's mid-run |
-| `QuotaGuard: This session has made 300 requests` | A loop isn't ending. Find it before raising the budget |
-| `The loop ran 11 times, past MAX_ITERATIONS` | Same thing, caught earlier |
-| `The server doesn't offer a tool called '...'` | Nothing registered in `mcp_server.py` yet, or the name doesn't match |
-| MCP returns a string where you expected a list | You're not going through `mcp_client.call_tool`, which unwraps it |
-| Fit cards identical every run | `CACHE_ENABLED` or `TEMPERATURE`. See above |
-| `--trace` prints nothing | You haven't added `trace.step()` calls yet — unit 4, Milestone 2 |
-| `IncompleteFieldDefinitionWarning: Field 'lifespan'` | Harmless noise from the MCP library's dependencies. Not your code, not an error. Ignore it |
-| A price ceiling you typed is being ignored | You used double quotes in PowerShell. `$30` vanished. Use single quotes |
-| `UnicodeEncodeError: 'charmap' codec can't encode` | Shouldn't happen — `config.py` sets the console to UTF-8. If you see it, you're running a file that doesn't import `config` |
+| `python test.py` | Checks the local environment |
+| `python app.py fields` | Displays listing and wardrobe fields |
+| `python app.py listings --full -n 6` | Displays six complete listings |
+| `python app.py examples` | Shows example search queries |
+| `python app.py ask 'vintage graphic tee under $30'` | Runs the agent from the command line |
+| `python serve.py` | Starts the HTTP server locally |
+| `python mcp_server.py` | Starts the MCP server directly |
+| `python mcp_client.py` | Checks what the MCP server offers |
+| `python run_eval.py --label before` | Runs the evaluation scenarios and saves results |
 
-Still stuck after one honest attempt? Post in the help channel with the full
-error, what you ran, and what you expected.
+## Troubleshooting
 
----
+| What you see | What to check |
+|---|---|
+| `Address already in use` | Another process is using the port. Start the app on a different available port, such as `8080`, and use that port in your test commands. |
+| `No GEMINI_API_KEY found` | Confirm that `.env` exists in the project root and contains `GEMINI_API_KEY=...`; on Render, set it in the service's Environment settings. |
+| HTTP `400` from `/ask` | Check that the JSON body includes a non-empty `query`. An empty query is expected to return `400`. |
+| HTTP `500` from `/ask` | Inspect the corresponding local log record or Render Runtime Logs for the error. |
+| `[serve] another request is still running` | The server processes one request at a time; the next request waits for the current one. |
+| `[rate limit] ... Waiting ...` | The model service is rate-limiting requests. The app's pacing is intentional; wait for it to continue. |
+| Fit cards look identical | Check `CACHE_ENABLED` and `TEMPERATURE` near the top of `config.py`. Cached prompts can reuse previous answers while building. |
+| The deployed app does not respond | Check the Render service status and Runtime Logs, then test `/health` before testing `/ask`. |
 
-## A note on committing
-
-At least four new commits in unit 3, at least four more in unit 4. Your commit
-history is what shows your criteria existed before your results did.
-
-**Do not delete and recreate this repository.** You submit the same URL both
-units.
-
-`results/` is deliberately **not** in `.gitignore`.
+If something is still wrong, capture the command you ran, the HTTP status or full error, and the related log record before debugging further.

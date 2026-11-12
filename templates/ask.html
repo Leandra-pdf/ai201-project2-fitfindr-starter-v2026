@@ -10,17 +10,23 @@
     <h1>Find your outfit</h1>
     <p>Describe what you're looking for.</p>
 
-    <form method="POST" action="/ask">
+    <form method="POST" action="/ask" id="search-form">
         <input
             type="text"
             name="query"
+            id="query"
             placeholder="Vintage graphic tee under $30..."
             value="{{ query }}"
             required
         >
 
-        <button type="submit">Find my outfit</button>
+        <button type="submit" id="search-button">
+            <span id="button-text">Find my outfit</span>
+            <span id="button-spinner" class="spinner" hidden></span>
+        </button>
     </form>
+
+    <p id="loading-message" hidden>Finding your fit...</p>
 
     {% if error %}
         <p class="error">{{ error }}</p>
@@ -37,6 +43,7 @@
             <p>No fit card was created.</p>
         {% endif %}
     </div>
+
     <div class="result-card">
         <h2>Selected listing</h2>
 
@@ -68,7 +75,5 @@
             <p>No outfit suggestion was generated.</p>
         {% endif %}
     </div>
-
-
 {% endif %}
 {% endblock %}
