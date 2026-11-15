@@ -643,3 +643,76 @@ Response: {"error":"Please enter a search query."}
 
 All five invalid requests returned HTTP 400. The corresponding Render Runtime Logs also contained five error-bearing `POST /ask` records with their request paths, durations, statuses, and error messages.
 
+
+## Verdicts and Diagnoses
+
+
+| # | Criterion | Target | Verdict | How I decided |
+|---|---|---|---|---|
+| 6 | Weighted reranking prioritizes stronger matches | 5/5 | MET | All five ranking tests passed in all three trials. |
+| 7 | Reranking preserves price and size filters | 10/10 | MET | All ten filter tests passed in all three trials. |
+| 8 | Deployed `/ask` requests respond within five seconds | 9/10 | MISSED | Only 3/10 requests met the target in Run 1 and 8/10 in Run 2. Run 3 reached 10/10, but the target must hold across all three trials. |
+| 9 | Deployed `/health` and `/ask` return expected responses | 10/10 | MET | All ten endpoint checks passed in all three trials. |
+| 10 | Failed requests are captured in logs | 5/5 | MET | All five intentionally invalid requests per trial returned HTTP 400 and were verified in the Render logs. |
+
+**Diagnoses**
+
+Criterion 8: Deployed `/ask` response time
+
+Criterion 8 missed because the response-time target was not consistent across the three trials. Only 3 of 10 requests met the five-second target in Run 1 and 8 of 10 in Run 2, although all 10 passed in Run 3.
+
+The failure occurs somewhere in the deployed `/ask` request path. The endpoint continued returning successful responses, so this was a performance issue rather than a response or availability failure. The results do not identify which internal stage caused the delays. I need to inspect the request flow and its timing before attributing the problem to a specific tool, loop branch, session, or model output.
+
+## The Improvement
+
+<!-- What you changed, why your diagnosis pointed at it, and the after-run in
+     the same table format. One change, measured properly.
+
+     `python run_eval.py --label after` -->
+
+**What I changed:**
+
+**Which failure it was meant to fix:**
+
+### Run Log — After
+
+| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
+|---|---|---|---|---|---|---|---|
+| 1.  |  |  |  |  |  |  |  |
+| 2.  |  |  |  |  |  |  |  |
+| 3.  |  |  |  |  |  |  |  |
+| 4.  |  |  |  |  |  |  |  |
+| 5.  |  |  |  |  |  |  |  |
+
+**Did it help, and how do I know:**
+
+<!-- If it made things worse, say that. Honestly reported, that earns full
+     credit and is more interesting than one that worked. -->
+
+
+## What's Still Broken
+
+<!-- For each criterion still missed: what you'd do, and why you stopped where
+     you did. "I ran out of time" is fine if it's true. Pretending nothing is
+     left is not. -->
+
+## How I Used AI
+
+<!-- Two specific moments. What you asked, what came back, what you changed.
+
+     "I used Claude to help me code" is not enough.
+
+     "I gave Claude my search_listings spec. It returned None on no match
+     instead of an empty list, so I changed it" is the level we want. -->
+
+**Moment 1**
+
+- *What I asked for:*
+- *What came back:*
+- *What I changed:*
+
+**Moment 2**
+
+- *What I asked for:*
+- *What came back:*
+- *What I changed:*
