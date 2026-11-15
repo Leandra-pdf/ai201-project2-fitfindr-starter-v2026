@@ -373,7 +373,7 @@ To keep this extension focused on one capability, I'm not:
 
 I measured FitFindr's request duration using the structured logging instrumentation in `serve.py`. Each HTTP request records its duration in seconds using `time.perf_counter()`.
 
-I ran two batches of 10 successful `/ask` requests with different queries. The first is a cached query and the second is a new one:
+I ran two batches of 10 successful `/ask` requests with different queries. The first used a cached query and the second used a new query:
 
 | Query | Runs | Average Duration |
 |---|---:|---:|
@@ -384,7 +384,15 @@ All 20 requests returned HTTP 200.
 
 The second batch included one noticeably slower request (3.110 seconds). Its remaining nine requests averaged approximately 0.275 seconds.
 
-These measurements represent end-to-end request duration, including processing and any waiting for external services. They are not a direct measurement of API charges or pure CPU time.
+Assuming an even split between cached and new queries, the average request duration was:
+
+`(0.311 + 0.559) / 2 = 0.435 seconds per request`
+
+At 100 requests per day, that would be:
+
+`100 × 0.435 = 43.5 seconds of cumulative request time per day`
+
+This is approximately 21.75 minutes per 30-day month. These measurements represent end-to-end request duration, including processing and waiting for external services. They are not a direct measurement of Gemini API charges or hosting costs, which would need to be calculated separately.
 
 ## Instrumentation
 
