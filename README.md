@@ -20,22 +20,6 @@
 
 ---
 
-<!-- ─────────────────────────────────────────────────────────────────────────
-     HOW TO USE THIS FILE
-
-     This is your submission. Fill each section in as you finish the milestone
-     it belongs to — don't leave it all to the end.
-
-     Unit 3 asks for the first five sections. Unit 4 adds the five below them.
-     Leave the unit 4 sections alone until then; they're here so you know
-     what's coming.
-
-     Everything is pasted as TEXT. No screenshots, no images, no video links.
-     A typed block of output gets full credit; a picture of the same output
-     gets none.
-     ───────────────────────────────────────────────────────────────────────── -->
-
-<!-- ═══════════════════════ UNIT 3 — THE BUILD ═══════════════════════ -->
 
 ## What This Does
 
@@ -441,3 +425,221 @@ The following are actual log records from local testing. They include successful
 The successful records show requests returning HTTP 200. The two failed records show that empty or missing queries are rejected with HTTP 400 and that the error is captured in the logs.
 
 The logs also demonstrate that the application records request duration and system information for both successful and failed requests.
+
+## Run Log — Before
+
+| Criterion | Target | Try 1 | Try 2 | Try 3 | Verdict |
+|---|---:|---:|---:|---:|---|
+| 6. Weighted reranking | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 7. Price and size filters | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
+| 8. `/ask` response under 5 seconds | 9 of 10 | 3/10 | 8/10 | 10/10 | MISSED |
+| 9. `/health` and `/ask` responses | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
+| 10. Failed requests captured in logs | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+
+## Real output from one try — Run 1
+
+### Criterion 6 — Weighted reranking
+
+**File:** `tools.py`  
+**Functions:** `search_listings()` and `_listing_score()`  
+**Test evidence produced by:** `test_milestone5.py` — `run_criterion_6()`
+
+```json
+{
+  "passed": 5,
+  "total": 5,
+  "evidence": [
+    {
+      "query": "velvet",
+      "scores": {"strong_1": 3, "weak_1": 1},
+      "returned_order": ["strong_1", "weak_1"],
+      "passed": true
+    },
+    {
+      "query": "crochet",
+      "scores": {"strong_2": 3, "weak_2": 1},
+      "returned_order": ["strong_2", "weak_2"],
+      "passed": true
+    },
+    {
+      "query": "butterfly",
+      "scores": {"strong_3": 3, "weak_3": 1},
+      "returned_order": ["strong_3", "weak_3"],
+      "passed": true
+    },
+    {
+      "query": "retro",
+      "scores": {"strong_4": 2, "weak_4": 1},
+      "returned_order": ["strong_4", "weak_4"],
+      "passed": true
+    },
+    {
+      "query": "boho",
+      "scores": {"strong_5": 2, "weak_5": 1},
+      "returned_order": ["strong_5", "weak_5"],
+      "passed": true
+    }
+  ]
+}
+```
+
+### Criterion 7 — Price and size filters
+
+**File:** `tools.py`  
+**Functions:** `search_listings()` and `_size_matches()`  
+**Test evidence produced by:** `test_milestone5.py` — `run_criterion_7()`
+
+```json
+{
+  "passed": 10,
+  "total": 10,
+  "evidence": [
+    {
+      "filter": "max_price",
+      "requested": 20,
+      "returned": [
+        {"id": "small_10", "price": 10},
+        {"id": "medium_20", "price": 20}
+      ],
+      "passed": true
+    },
+    {
+      "filter": "size",
+      "requested": "XL",
+      "returned_ids": ["one_size_30", "xl_40"],
+      "expected_ids": ["one_size_30", "xl_40"],
+      "passed": true
+    },
+    {
+      "filter": "size",
+      "requested": "S/M",
+      "returned_ids": [
+        "medium_20",
+        "one_size_30",
+        "sm_25",
+        "small_10"
+      ],
+      "expected_ids": [
+        "medium_20",
+        "one_size_30",
+        "sm_25",
+        "small_10"
+      ],
+      "passed": true
+    }
+  ]
+}
+```
+
+### Criterion 8 — `/ask` response time
+
+**File:** `serve.py`  
+**Function:** `ask()`  
+**Test evidence produced by:** `test_milestone5.py` — `run_http_trial()` and `http_request()`
+
+The test script recorded these actual client-side request results:
+
+```text
+Query: vintage graphic tee under $30
+HTTP status: 200
+Duration: 44.848 seconds
+
+Query: Y2K baby tee under $25
+HTTP status: 200
+Duration: 7.271 seconds
+
+Query: oversized vintage band tee under $35
+HTTP status: 200
+Duration: 6.553 seconds
+
+Query: cropped butterfly print top under $20
+HTTP status: 200
+Duration: 5.118 seconds
+
+Query: faded 90s concert shirt under $30
+HTTP status: 200
+Duration: 8.499 seconds
+
+Query: black graphic tee under $25
+HTTP status: 200
+Duration: 5.328 seconds
+
+Query: retro tour shirt under $40
+HTTP status: 200
+Duration: 7.563 seconds
+
+Query: casual streetwear tee under $30
+HTTP status: 200
+Duration: 5.540 seconds
+
+Query: vintage cotton baby tee under $25
+HTTP status: 200
+Duration: 4.716 seconds
+
+Query: colorful graphic shirt under $30
+HTTP status: 200
+Duration: 4.912 seconds
+```
+
+**Important:** These are the actual client-side durations stored in `trial_1(1).json`. The Criterion 8 verdict uses the server-side `duration_seconds` values from Render Runtime Logs. Those logs gave Run 1 a result of **3/10**, so use the Render records as the authoritative evidence for the criterion.
+
+### Criterion 9 — Endpoint responses
+
+**File:** `serve.py`  
+**Functions:** `health()` and `ask()`  
+**Test evidence produced by:** `test_milestone5.py` — `run_http_trial()`
+
+Actual `/health` responses:
+
+```json
+{"status":"ok"}
+{"status":"ok"}
+{"status":"ok"}
+{"status":"ok"}
+{"status":"ok"}
+```
+
+All five returned HTTP 200.
+
+The five valid `/ask` requests also returned HTTP 200 and contained the expected session fields:
+
+```text
+vintage graphic tee under $30 — 200 — expected session shape: True
+Y2K baby tee under $25 — 200 — expected session shape: True
+oversized vintage band tee under $35 — 200 — expected session shape: True
+cropped butterfly print top under $20 — 200 — expected session shape: True
+faded 90s concert shirt under $30 — 200 — expected session shape: True
+```
+
+### Criterion 10 — Failed requests and logging
+
+**File:** `serve.py`  
+**Functions:** `ask()`, `finish_request()`, and `log_request()`  
+**Test evidence produced by:** `test_milestone5.py` — `run_http_trial()` and `http_request()`
+
+Actual invalid-request responses:
+
+```text
+Payload: []
+HTTP status: 400
+Response: {"error":"Invalid JSON body. Send a JSON object with a 'query' field."}
+
+Payload: {"query": ""}
+HTTP status: 400
+Response: {"error":"Please enter a search query."}
+
+Payload: {"query": null}
+HTTP status: 400
+Response: {"error":"Please enter a search query."}
+
+Payload: {"query": 123}
+HTTP status: 400
+Response: {"error":"Please enter a search query."}
+
+Payload: {"query": "   "}
+HTTP status: 400
+Response: {"error":"Please enter a search query."}
+```
+
+All five invalid requests returned HTTP 400. The corresponding Render Runtime Logs also contained five error-bearing `POST /ask` records with their request paths, durations, statuses, and error messages.
+
