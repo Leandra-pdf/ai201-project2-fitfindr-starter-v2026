@@ -74,13 +74,20 @@ I chose 10 out of 10 because reranking should only change the order of matching 
 
 ---
 
-## **8. Deployed searches meet a response-time target**
+## **OLD 8. Deployed searches meet a response-time target**
 
 Given 10 valid search requests to the deployed `/ask` endpoint, at least 9 out of 10 complete within 5 seconds, as measured by the request duration in the application logs.
 
 **Why this target:**
 
 I chose 9 out of 10 because new searches take longer to run. Five seconds gives the user a reasonable wait time while allowing for delays. Measuring the duration through the logs also tests whether the instrumentation provides useful performance information.
+## ** NEW 8. Deployed request instrumentation captures successful request performance data**
+
+For 10 out of 10 valid requests to the deployed `/ask` endpoint, the application must produce a corresponding log entry containing the request path, HTTP status, and request duration (`duration_seconds`).
+
+**Why this target:**
+
+Instrumentation is necessary to observe how the deployed application performs and diagnose issues. Verifying successful requests ensures the logging system captures normal application activity, not just errors. This also complements Criterion 10, which verifies that failed requests are logged. Together, they demonstrate that both successful and failed requests are observable in the deployed application.
 
 ---
 

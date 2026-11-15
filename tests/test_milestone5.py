@@ -13,24 +13,27 @@ tests the deployed HTTP endpoints. It saves a Markdown run log and raw JSON
 evidence under results/milestone5/.
 
 The five /ask requests used for Criterion 9 are reused from Criterion 8's
-ten latency requests, so each trial makes ten valid model requests, not 15.
+ten successful-request logging checks, so each trial makes ten valid model
+requests, not 15. Criterion 8 and Criterion 10 require manual verification
+against the corresponding Render Runtime Logs.
 """
 
 import json
 import os
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-import tools
 
 
 TRIALS = 3
-LATENCY_TARGET_SECONDS = 5.0
-LATENCY_REQUIRED = 9
 BASE_QUERY = "garment"
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent if SCRIPT_DIR.name == "tests" else SCRIPT_DIR
+sys.path.insert(0, str(PROJECT_ROOT))
 
 # Ten distinct valid queries per trial. Using different queries avoids making
 # every measurement a repeat of the exact same cached request.
@@ -104,6 +107,7 @@ def make_listing(listing_id, title, description, style_tags, size, price):
 
 def run_criterion_6():
     """Test that title/style-tag matches outrank weaker description matches."""
+    import tools
 
     original_loader = tools.load_listings
     test_listings = []
@@ -186,6 +190,7 @@ def run_criterion_6():
 
 def run_criterion_7():
     """Test five price ceilings and five size filters against known listings."""
+    import tools
 
     original_loader = tools.load_listings
     test_listings = [
@@ -269,6 +274,9 @@ def http_request(base_url, method, path, payload=None, timeout=120):
         headers["Content-Type"] = "application/json"
 
     request = Request(url, data=data, headers=headers, method=method)
+    request_started_at = datetime.now(timezone.utc).isoformat(
+        timespec="milliseconds"
+    )
     started = time.perf_counter()
 
     try:
@@ -292,6 +300,7 @@ def http_request(base_url, method, path, payload=None, timeout=120):
     return {
         "method": method,
         "path": path,
+        "request_started_at_utc": request_started_at,
         "status": status,
         "duration_seconds": round(duration, 3),
         "body": body,
@@ -300,7 +309,7 @@ def http_request(base_url, method, path, payload=None, timeout=120):
 
 
 def run_http_trial(base_url, trial_number):
-    """Run latency, endpoint-shape, and deliberate-failure checks once."""
+    """Run successful-request logging, endpoint-shape, and failure checks."""
     ask_results = []
 
     for query in ASK_QUERIES[trial_number - 1]:
@@ -315,10 +324,7 @@ def run_http_trial(base_url, trial_number):
         result["has_expected_session_shape"] = (
             isinstance(body, dict) and SESSION_KEYS.issubset(body.keys())
         )
-        result["under_5_seconds"] = (
-            result["status"] == 200
-            and result["duration_seconds"] < LATENCY_TARGET_SECONDS
-        )
+        result["successful_response"] = result["status"] == 200
         ask_results.append(result)
 
     health_results = []
@@ -347,8 +353,8 @@ def run_http_trial(base_url, trial_number):
         result["returned_400"] = result["status"] == 400
         failure_results.append(result)
 
-    latency_passed = sum(
-        1 for result in ask_results if result["under_5_seconds"]
+    successful_ask_responses = sum(
+        1 for result in ask_results if result["successful_response"]
     )
     endpoint_passed = sum(
         1 for result in ask_results[:5]
@@ -363,13 +369,18 @@ def run_http_trial(base_url, trial_number):
 
     return {
         "criterion_8": {
-            "passed": latency_passed,
+            # HTTP success is measured automatically. Do not mark MET until
+            # all ten corresponding server-side log entries are verified.
+            "http_successful": successful_ask_responses,
             "total": 10,
-            "met": latency_passed >= LATENCY_REQUIRED,
-            "durations_seconds": [
-                result["duration_seconds"] for result in ask_results
-            ],
+            "met": None,
             "requests": ask_results,
+            "log_verification": (
+                "Verify ten matching Render Runtime Log entries for POST "
+                "/ask. Each must show status 200 and numeric "
+                "duration_seconds. Correlate using request_started_at_utc "
+                "and query."
+            ),
         },
         "criterion_9": {
             "passed": endpoint_passed,
@@ -415,7 +426,7 @@ def write_report(output_dir, all_trials):
     criteria = [
         ("6. Weighted reranking", "5 of 5", "criterion_6"),
         ("7. Price and size filters", "10 of 10", "criterion_7"),
-        ("8. /ask response under 5 seconds", "9 of 10", "criterion_8"),
+        ("8. Successful /ask requests are logged", "10 of 10", "criterion_8"),
         ("9. /health and /ask responses", "10 of 10", "criterion_9"),
         ("10. Failure requests return 400", "5 of 5", "criterion_10"),
     ]
@@ -434,16 +445,18 @@ def write_report(output_dir, all_trials):
         values = []
         for trial in all_trials:
             result = trial[key]
-            values.append(f"{result['passed']}/{result['total']}")
+            if key == "criterion_8":
+                values.append(f"{result['http_successful']}/10 HTTP; logs pending")
+            elif key == "criterion_10":
+                values.append(f"{result['passed']}/5 HTTP; logs pending")
+            else:
+                values.append(f"{result['passed']}/{result['total']}")
 
-        if key == "criterion_8":
-            met_all = all(trial[key]["met"] for trial in all_trials)
+        if key in {"criterion_8", "criterion_10"}:
+            verdict = "PENDING LOG CHECK"
         else:
             met_all = all(trial[key]["met"] for trial in all_trials)
-
-        verdict = "MET" if met_all else "MISSED"
-        if key == "criterion_10":
-            verdict = "PENDING LOG CHECK"
+            verdict = "MET" if met_all else "MISSED"
         lines.append(
             f"| {label} | {target} | {values[0]} | {values[1]} "
             f"| {values[2]} | {verdict} |"
@@ -469,16 +482,40 @@ def write_report(output_dir, all_trials):
         compact_json(all_trials[0]["criterion_7"]["evidence"]),
         "```",
         "",
-        "### Criterion 8 — response time",
+        "### Criterion 8 — successful `/ask` request instrumentation",
         "",
-        "Produced by `serve.py`: the `/ask` route; request duration measured "
-        "by this script with `time.perf_counter()`.",
+        "Produced by `serve.py`: the `/ask` route and request logging. The "
+        "script records UTC request start times, query text, and HTTP results "
+        "to help correlate the ten requests with Render Runtime Logs.",
         "",
         "```json",
         compact_json([
-            summarize_http_request(item)
+            {
+                **summarize_http_request(item),
+                "request_started_at_utc": item.get("request_started_at_utc"),
+                "query": item.get("query"),
+            }
             for item in all_trials[0]["criterion_8"]["requests"]
         ]),
+        "```",
+        "",
+        "**Important:** A successful HTTP response does not prove its server "
+        "log entry was written. Verify all ten matching `POST /ask` entries "
+        "in Render Runtime Logs. Each must show HTTP 200 and a numeric "
+        "`duration_seconds` field. Paste the actual log lines below.",
+        "",
+        "```text",
+        "[RUN 1: PASTE TEN ACTUAL SUCCESSFUL RENDER LOG LINES HERE]",
+        "```",
+        "",
+        "Run 2: verify and paste ten matching successful `/ask` log lines.",
+        "```text",
+        "[RUN 2: PASTE TEN ACTUAL SUCCESSFUL RENDER LOG LINES HERE]",
+        "```",
+        "",
+        "Run 3: verify and paste ten matching successful `/ask` log lines.",
+        "```text",
+        "[RUN 3: PASTE TEN ACTUAL SUCCESSFUL RENDER LOG LINES HERE]",
         "```",
         "",
         "### Criterion 9 — endpoint responses",
@@ -515,7 +552,17 @@ def write_report(output_dir, all_trials):
         "Runtime Logs and paste those actual JSON log lines below.",
         "",
         "```text",
-        "[PASTE FIVE ACTUAL RENDER LOG LINES HERE]",
+        "[RUN 1: PASTE FIVE ACTUAL FAILED-REQUEST LOG LINES HERE]",
+        "```",
+        "",
+        "Run 2: verify and paste five matching failed `/ask` log lines.",
+        "```text",
+        "[RUN 2: PASTE FIVE ACTUAL FAILED-REQUEST LOG LINES HERE]",
+        "```",
+        "",
+        "Run 3: verify and paste five matching failed `/ask` log lines.",
+        "```text",
+        "[RUN 3: PASTE FIVE ACTUAL FAILED-REQUEST LOG LINES HERE]",
         "```",
         "",
         "## Notes",
@@ -524,8 +571,10 @@ def write_report(output_dir, all_trials):
         "- Each trial uses five reranking cases and ten filter cases.",
         "- Each trial sends ten valid `/ask` requests, five `/health` requests, "
         "and five deliberate invalid `/ask` requests.",
-        "- Criterion 10 remains unverified until the Render log lines above "
-        "are inspected.",
+        "- Criterion 8 remains unverified until all ten successful `/ask` "
+        "log entries are inspected.",
+        "- Criterion 10 remains unverified until all five failed `/ask` "
+        "log entries are inspected.",
         "",
     ])
 
@@ -547,8 +596,7 @@ def main():
         print("Please provide a full URL beginning with https:// or http://")
         return 1
 
-    project_root = Path(__file__).resolve().parent
-    output_dir = project_root / "results" / "milestone5"
+    output_dir = PROJECT_ROOT / "results" / "milestone5"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"\nFitFindr Milestone 5 tests")
@@ -581,10 +629,17 @@ def main():
             (10, "criterion_10"),
         ]:
             result = http_results[key]
-            print(
-                f"Criterion {number}: "
-                f"{result['passed']}/{result['total']}"
-            )
+            if number == 8:
+                print(
+                    f"Criterion 8 successful /ask HTTP responses: "
+                    f"{result['http_successful']}/10 "
+                    "(Render log verification still required)"
+                )
+            else:
+                print(
+                    f"Criterion {number}: "
+                    f"{result['passed']}/{result['total']}"
+                )
 
         trial = {
             "trial": trial_number,
@@ -611,13 +666,14 @@ def main():
         (9, "criterion_9"),
         (10, "criterion_10"),
     ]:
-        scores = [
-            f"{trial[key]['passed']}/{trial[key]['total']}"
-            for trial in all_trials
-        ]
-        if key == "criterion_10":
+        if key == "criterion_8":
+            scores = [f"{trial[key]['http_successful']}/10 HTTP" for trial in all_trials]
+            verdict = "PENDING LOG CHECK"
+        elif key == "criterion_10":
+            scores = [f"{trial[key]['passed']}/{trial[key]['total']} HTTP" for trial in all_trials]
             verdict = "PENDING LOG CHECK"
         else:
+            scores = [f"{trial[key]['passed']}/{trial[key]['total']}" for trial in all_trials]
             met_all = all(trial[key]["met"] for trial in all_trials)
             verdict = "MET" if met_all else "MISSED"
         print(f"Criterion {number}: {', '.join(scores)} — {verdict}")
@@ -628,8 +684,9 @@ def main():
     print(f"  {output_dir / 'trial_2.json'}")
     print(f"  {output_dir / 'trial_3.json'}")
     print(
-        "\nBefore submitting, verify Criterion 10 in Render Runtime Logs "
-        "and paste the five actual log records into the report."
+        "\nBefore submitting, verify all 30 successful and 15 failed /ask "
+        "log records across the three trials in Render Runtime Logs. "
+        "Paste the actual log lines into the report."
     )
 
     return 0

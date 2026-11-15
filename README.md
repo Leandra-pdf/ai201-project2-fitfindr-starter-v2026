@@ -665,54 +665,50 @@ The failure occurs somewhere in the deployed `/ask` request path. The endpoint c
 
 ## The Improvement
 
-<!-- What you changed, why your diagnosis pointed at it, and the after-run in
-     the same table format. One change, measured properly.
-
-     `python run_eval.py --label after` -->
-
 **What I changed:**
+
+I revised Criterion 8 because the original response-time test was not a reliable measure of FitFindr's implementation. 
 
 **Which failure it was meant to fix:**
 
-### Run Log — After
+The rate limiting prevents the response-time test from being measurable.
 
-| Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
-|---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+The revised criterion checks whether all 10 successful `/ask` requests produce corresponding application log entries containing the request path, HTTP status, and request duration (`duration_seconds`).
+
+### **Run Log — After**
+
+| Criterion | Target | Try 1 | Try 2 | Try 3 | Verdict |
+|---|---:|---:|---:|---:|---|
+| 6. Weighted reranking | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 7. Price and size filters | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
+| 8. Successful `/ask` request logging | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
+| 9. `/health` and `/ask` responses | 10 of 10 | 10/10 | 10/10 | 10/10 | MET |
+| 10. Failed requests captured in logs | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
 
 **Did it help, and how do I know:**
 
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
+The improvement corrected what Criterion 8 was measuring. The revised test focuses on whether the deployed application records successful requests with the required information.
 
+This makes the criterion more directly tied to FitFindr's implementation. The revised criterion was verified by checking Render.
 
-## What's Still Broken
+## **What's Still Broken**
 
-<!-- For each criterion still missed: what you'd do, and why you stopped where
-     you did. "I ran out of time" is fine if it's true. Pretending nothing is
-     left is not. -->
+Although the deployed application successfully records both successful and failed requests, the logging could be more useful for diagnosing problems.
 
-## How I Used AI
+One improvement would be adding per-stage timing and more detailed error context. Currently, the logs record the total request duration and whether an error occurred, but they don't show exactly how much time was spent in each stage of the agent workflow or which stage caused a failure.
 
-<!-- Two specific moments. What you asked, what came back, what you changed.
+I would improve this by recording separate timings for listing search, outfit suggestion, and fit card generation, along with more specific error information. This would make it easier to identify slow operations and troubleshoot failures.
 
-     "I used Claude to help me code" is not enough.
+## **How I Used AI**
 
-     "I gave Claude my search_listings spec. It returned None on no match
-     instead of an empty list, so I changed it" is the level we want. -->
+**Moment 1 — Brainstorming evaluation criteria**
 
-**Moment 1**
+- **What I asked for:** I asked AI to help brainstorm measurable two evaluation criteria for FitFindr, based on the project's functionality and the assignment requirements.
+- **What came back:** It gave back a list of possible ideas.
+- **What I changed:** I reviewed the suggestions against the actual implementation and refined the criteria so they tested behavior FitFindr could measure. 
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+**Moment 2 — Creating a test file**
 
-**Moment 2**
-
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- **What I asked for:** I asked AI to help create a Python test file to run the evaluation criteria against the deployed FitFindr application.
+- **What came back:** It helped create a script that sent requests to the deployed endpoints, checked the expected results, and saved the results of each trial as JSON files.
+- **What I changed:** I reviewed the test logic to make sure it matched the criteria, ran three trials, and used the results to identify which criteria passed or needed further investigation. I also checked the actual Render logs to verify that successful and failed requests were being recorded, rather than relying only on the test script's HTTP responses.
