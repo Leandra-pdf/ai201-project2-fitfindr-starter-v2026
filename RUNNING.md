@@ -4,15 +4,25 @@ Everything about how the app works and how to use it. This guide explains how to
 
 ## Capstone Deployed app
 
-**Live app:** [YOUR_RENDER_URL]
+[LIVE APP LINK](https://ai201-project2-fitfindr-starter-v2026-0nk2.onrender.com)
 
-Replace `YOUR_RENDER_URL` above with the public URL shown for your FitFindr web service in the Render dashboard. The same base URL is used for the home page and API endpoints.
 
 - Open the live app: `https://ai201-project2-fitfindr-starter-v2026-0nk2.onrender.com/`
 - Health check: `https://ai201-project2-fitfindr-starter-v2026-0nk2.onrender.com/health`
-- Search endpoint: `https://ai201-project2-fitfindr-starter-v2026-0nk2.onrender.com/ask` (POST)
+- Search endpoint: `https://ai201-project2-fitfindr-starter-v2026-0nk2.onrender.com/ask` 
 
 The home page should load the FitFindr interface. The health endpoint should return an `ok` response when the service is running.
+
+## Using the Deployed App
+
+You can try FitFindr without installing anything or cloning the repository.
+
+1. Open the live app link in your browser.
+2. Enter a clothing search, such as `vintage graphic tee under $30`.
+3. Submit your search.
+4. Review the matching listing, outfit suggestion, and fit card.
+
+You do not need to install Python or provide your own Gemini API key to use the deployed version.
 
 ## Run locally
 
@@ -43,11 +53,6 @@ Add your `GEMINI_API_KEY` to `.env`. Keep this file private; do not commit API k
 Activate the virtual environment whenever you open a new terminal. You should see `(.venv)` in your prompt.
 
 ### 2. Start the HTTP server
-
-```bash
-python serve.py
-```
-
 
 The server starts on port `8080` by default and prints the local address it is listening on.
 
